@@ -1,0 +1,14 @@
+{
+    "bind_addr": "0.0.0.0",
+    "port": 43280,
+    "postgresql": {
+        "host": "localhost",
+        "port": 5432,
+        "db": "sr2",
+        "user": "sr2",
+        "pw": "XXXXXXXXXXX"
+    },
+    "template_dir": null,
+    "static_dir": null,
+    "template_cache": false
+}
