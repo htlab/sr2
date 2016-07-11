@@ -8,5 +8,11 @@ bin
 
 .venv
 
+.gradle
+
+java/bin
+java/build
+
 controller-config.json
 
+*.secret.ini
