@@ -9,7 +9,7 @@ CREATE TABLE "user"(
 );
 
 CREATE TABLE "api_key"(
-	user_id bigint REFERENCES user (id),
+	user_id bigint REFERENCES "user" (id),
 	is_enabled boolean NOT NULL,
 	api_key varchar(255) NOT NULL,
 	created timestamp NOT NULL,
@@ -22,9 +22,10 @@ CREATE TABLE observation(
 	sox_node varchar(255) NOT NULL,
 	sox_jid varchar(255),
 	sox_password varchar(255),
-	is_anonymous boolean NOT NULL,
+	is_using_default_user boolean NOT NULL,
 	is_existing boolean NOT NULL,
 	is_record_stopped boolean NOT NULL,
+	is_subscribed boolean NOT NULL,
 	created timestamp NOT NULL,
 	recent_monthly_average_data_arrival real,
 	recent_monthly_total_data_arrival integer,
@@ -72,55 +73,86 @@ CREATE TABLE monthly_unit(
 	PRIMARY KEY (monthly_record_count_id, day)
 );
 
+CREATE TABLE record(
+	id bigserial,
+	observation_id bigint REFERENCES observation (id),
+	is_parse_error boolean NOT NULL,
+	created timestamp NOT NULL,
+	PRIMARY KEY (id)
+);
+
 CREATE TABLE raw_xml(
 	id bigserial,
+	record_id bigint REFERENCES record (id),
     is_gzipped boolean NOT NULL,
 	raw_xml bytea NOT NULL,
 	PRIMARY KEY (id)
 );
 
-CREATE TABLE record(
-	id bigserial,
-	observation_id bigint REFERENCES observation (id),
-	is_parse_error boolean NOT NULL,
-	raw_xml_id bigint REFERENCES raw_xml (id),
-	created timestamp NOT NULL,
-	PRIMARY KEY (id)
-);
-
 CREATE INDEX record_observation_id_created ON record (observation_id, created);
 
+/*
+	hash_key => SHA-256 hash hex digest
+*/
 CREATE TABLE large_object(
 	id bigserial,
 	is_gzipped boolean,
 	hash_key varchar(64) NOT NULL,
 	content bytea NOT NULL,
+	content_length integer NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (hash_key)
 );
 
+
+/*
+	name => "current temperature"
+	transdcuer_id  => "temp"
+*/
+CREATE TABLE transducer(
+	id bigserial,
+	observation_id bigint REFERENCES observation (id),
+	name varchar(255),
+	transducer_id varchar(255),
+	min_value varchar(255),
+	max_value varchar(255),
+	unit varchar(255),
+	PRIMARY KEY (id),
+	UNIQUE (observation_id, transducer_id)
+);
+
+/*
+	value_type:
+		1: string
+		2: int
+		3: float
+		4: decimal
+		5: large object
+*/
 CREATE TABLE transducer_raw_value(
 	record_id bigint REFERENCES record (id),
 	has_same_typed_value boolean NOT NULL,
     value_type smallint NOT NULL,
-	transducer varchar(255),
+	transducer_id bigint REFERENCES transducer (id),
 	string_value varchar(255),
 	int_value bigint,
 	float_value double precision,
+	decimal_value decimal,
 	large_object_id bigint REFERENCES large_object (id),
 	transducer_timestamp timestamp,
-	PRIMARY KEY (record_id, transducer)
+	PRIMARY KEY (record_id, transducer_id)
 );
 
 CREATE TABLE transducer_typed_value(
 	record_id bigint REFERENCES record (id),
 	value_type smallint NOT NULL,
-	transducer varchar(255),
+	transducer_id bigint REFERENCES transducer (id),
 	string_value varchar(255),
 	int_value bigint,
+	decimal_value decimal,
 	float_value double precision,
 	large_object_id bigint REFERENCES large_object (id),
-	PRIMARY KEY (record_id, transducer)
+	PRIMARY KEY (record_id, transducer_id)
 );
 
 CREATE TABLE export(
