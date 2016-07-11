@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -41,6 +42,15 @@ public class SoxRecorderClient {
 	public static final String API_PATH_SERVER_LIST = "/api/server/list";
 	public static final String API_PATH_ADD_OBSERVATION = "/api/observation/add";
 	public static final String API_PATH_UPDATE_EXPORT_STATE = "/api/export/update-state/<export_id>";
+	
+	public static final String PROP_KEY_ENDPOINT = "endpoint";
+	public static final String PROP_KEY_API_KEY = "apikey";
+	
+	public static SoxRecorderClient buildFromProperties(Properties config) {
+		String endpoint = config.getProperty(PROP_KEY_ENDPOINT);
+		String apiKey = config.getProperty(PROP_KEY_API_KEY);
+		return new SoxRecorderClient(endpoint, apiKey);
+	}
 	
 	private final String endpoint;
 	private final String apiKey;

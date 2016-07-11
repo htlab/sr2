@@ -41,5 +41,10 @@
 	<classpathentry kind="lib" path="lib/httpcomponent-client/httpmime-4.5.2.jar"/>
 	<classpathentry kind="lib" path="lib/httpcomponent-client/jna-4.1.0.jar"/>
 	<classpathentry kind="lib" path="lib/httpcomponent-client/jna-platform-4.1.0.jar"/>
+	<classpathentry kind="lib" path="lib/postgresql/postgresql-9.4.1208.jre6.jar"/>
+	<classpathentry kind="lib" path="lib/dom4j-1.6.1.jar"/>
+	<classpathentry kind="lib" path="lib/xpp3-1.1.6.jar"/>
+	<classpathentry kind="lib" path="lib/jaxen-full.jar"/>
+	<classpathentry kind="lib" path="lib/saxpath.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

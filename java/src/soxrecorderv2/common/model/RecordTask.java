@@ -4,18 +4,14 @@ import jp.ac.keio.sfc.ht.sox.protocol.Data;
 
 public class RecordTask {
 	
-	private final String observationId;
 	private final NodeIdentifier nodeId;
 	private final Data data;
+	private String rawXml;
 	
-	public RecordTask(String observationId, NodeIdentifier nodeId, Data data) {
-		this.observationId = observationId;
+	public RecordTask(NodeIdentifier nodeId, Data data, String rawXml) {
 		this.nodeId = nodeId;
 		this.data = data;
-	}
-	
-	public String getObservationId() {
-		return observationId;
+		this.rawXml = rawXml;
 	}
 	
 	public NodeIdentifier getNodeId() {
@@ -24,6 +20,10 @@ public class RecordTask {
 	
 	public Data getData() {
 		return data;
+	}
+	
+	public String getRawXml() {
+		return rawXml;
 	}
 
 }

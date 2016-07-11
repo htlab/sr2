@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- WARNING: Eclipse auto-generated file.
+              Any modifications will be overwritten.
+              To include a user specific buildfile here, simply create one in the same
+              directory with the processing instruction <?eclipse.ant.import?>
+              as the first entry and export the buildfile again. --><project basedir="." default="build" name="SoxRecorderV2">
+    <property environment="env"/>
+    <property name="debuglevel" value="source,lines,vars"/>
+    <property name="target" value="1.7"/>
+    <property name="source" value="1.7"/>
+    <path id="SoxRecorderV2.classpath">
+        <pathelement location="bin"/>
+        <pathelement location="lib/simple/simple-xml-2.7.1.jar"/>
+        <pathelement location="lib/simple/stax-1.2.0.jar"/>
+        <pathelement location="lib/simple/stax-api-1.0.1.jar"/>
+        <pathelement location="lib/smack/httpclient-4.2.3.jar"/>
+        <pathelement location="lib/smack/jxmpp-core-0.4.1.jar"/>
+        <pathelement location="lib/smack/jxmpp-util-cache-0.5.0-alpha2.jar"/>
+        <pathelement location="lib/smack/minidns-0.1.3.jar"/>
+        <pathelement location="lib/smack/smack-android-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-android-extensions-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-bosh-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-compression-jzlib-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-core-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-debug-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-debug-slf4j-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-experimental-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-extensions-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-im-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-java7-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-jingle-old-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-legacy-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-resolver-dnsjava-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-resolver-javax-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-resolver-minidns-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-sasl-javax-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-sasl-provided-4.1.5.jar"/>
+        <pathelement location="lib/smack/smack-tcp-4.1.5.jar"/>
+        <pathelement location="lib/JSoxLib.jar"/>
+        <pathelement location="lib/commons-io-2.5.jar"/>
+        <pathelement location="lib/jsonic-1.3.10.jar"/>
+        <pathelement location="lib/httpcomponent-client/commons-codec-1.9.jar"/>
+        <pathelement location="lib/httpcomponent-client/commons-logging-1.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/fluent-hc-4.5.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/httpclient-4.5.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/httpclient-cache-4.5.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/httpclient-win-4.5.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/httpcore-4.4.4.jar"/>
+        <pathelement location="lib/httpcomponent-client/httpmime-4.5.2.jar"/>
+        <pathelement location="lib/httpcomponent-client/jna-4.1.0.jar"/>
+        <pathelement location="lib/httpcomponent-client/jna-platform-4.1.0.jar"/>
+        <pathelement location="lib/postgresql/postgresql-9.4.1208.jre6.jar"/>
+        <pathelement location="lib/dom4j-1.6.1.jar"/>
+        <pathelement location="lib/xpp3-1.1.6.jar"/>
+        <pathelement location="lib/jaxen-full.jar"/>
+        <pathelement location="lib/saxpath.jar"/>
+    </path>
+    <target name="init">
+        <mkdir dir="bin"/>
+        <copy includeemptydirs="false" todir="bin">
+            <fileset dir="src">
+                <exclude name="**/*.launch"/>
+                <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+    </target>
+    <target name="clean">
+        <delete dir="bin"/>
+    </target>
+    <target depends="clean" name="cleanall"/>
+    <target depends="build-subprojects,build-project" name="build"/>
+    <target name="build-subprojects"/>
+    <target depends="init" name="build-project">
+        <echo message="${ant.project.name}: ${ant.file}"/>
+        <javac debug="true" debuglevel="${debuglevel}" destdir="bin" includeantruntime="false" source="${source}" target="${target}">
+            <src path="src"/>
+            <classpath refid="SoxRecorderV2.classpath"/>
+        </javac>
+    </target>
+    <target description="Build all projects which reference this project. Useful to propagate changes." name="build-refprojects"/>
+    <target description="copy Eclipse compiler jars to ant lib directory" name="init-eclipse-compiler">
+        <copy todir="${ant.library.dir}">
+            <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
+        </copy>
+        <unzip dest="${ant.library.dir}">
+            <patternset includes="jdtCompilerAdapter.jar"/>
+            <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
+        </unzip>
+    </target>
+    <target description="compile project with Eclipse compiler" name="build-eclipse-compiler">
+        <property name="build.compiler" value="org.eclipse.jdt.core.JDTCompilerAdapter"/>
+        <antcall target="build"/>
+    </target>
+    <target name="Recorder">
+        <java classname="soxrecorderv2.recorder.Recorder" failonerror="true" fork="yes">
+            <arg line="config/recorder.secret.ini"/>
+            <classpath refid="SoxRecorderV2.classpath"/>
+        </java>
+    </target>
+    <target name="Test1">
+        <java classname="Test1" failonerror="true" fork="yes">
+            <classpath refid="SoxRecorderV2.classpath"/>
+        </java>
+    </target>
+    <target name="UnsubscribeAllDevice">
+        <java classname="soxrecorderv2.junk.UnsubscribeAllDevice" failonerror="true" fork="yes">
+            <arg line="soxrecorder !htmiro1"/>
+            <classpath refid="SoxRecorderV2.classpath"/>
+        </java>
+    </target>
+</project>

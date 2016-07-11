@@ -1,5 +1,11 @@
 package soxrecorderv2.common.model;
 
+/**
+ * serverとnode名のペアを表現するモデル
+ * 
+ * @author tomotaka
+ *
+ */
 public class NodeIdentifier {
 	
 	private final String server;

@@ -23,6 +23,7 @@ public class Exporter implements Runnable {
 	public static final String CONFIG_KEY_ENDPOINT = "controller_endpoint";
 	public static final String CONFIG_KEY_EXPORTER_API_KEY = "exporter_api_key";
 	
+	@SuppressWarnings("unused")
 	private String configFile;
 	private SR2SystemConfig config;
 	
@@ -72,7 +73,7 @@ public class Exporter implements Runnable {
 			}
 		}
 		
-		getClient().updateExportState(exportId, newState);
+//		getClient().updateExportState(exportId, newState);
 	}
 	
 	protected SoxRecorderClient getClient() {

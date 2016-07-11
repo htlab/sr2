@@ -1,0 +1,31 @@
+apply plugin: "java"
+apply plugin: "maven"
+
+def defaultEncoding = 'UTF-8'
+[compileJava, compileTestJava]*.options*.encoding = defaultEncoding
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+group = 'soxrecorder2'
+archivesBaseName = 'recorder'
+version = '0.0.1'
+
+dependencies {
+  compile fileTree(dir: 'lib', includes: ['**/*.jar'])
+}
+
+sourceSets {
+  main {
+    java { srcDir 'src' }
+  }
+}
+
+
+task fatJar(type: Jar) {
+  manifest {
+    attributes 'Implementation-Title': 'SOX Recorder 2', 'Implementation-Version': 0.01
+    attributes 'Main-Class': 'soxrecorderv2.recorder.Recorder'
+  }
+  from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+  with jar
+}
