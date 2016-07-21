@@ -3,6 +3,8 @@
 *.pyc
 *.egg-info
 
+.vagrant/
+
 data
 bin
 
