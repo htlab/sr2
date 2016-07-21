@@ -170,6 +170,13 @@ CREATE TABLE export(
     PRIMARY KEY (id)
 );
 
+CREATE TABLE export_transducer(
+	export_id bigint REFERENCES export (id),
+	transducer_id bigint REFERENCES transducer (id),
+	seq int NOT NULL,
+	PRIMARY KEY (export_id, transducer_id)
+);
+
 CREATE INDEX export_created ON export (created);
 CREATE INDEX export_state_save_until ON export (state, save_until);
 CREATE INDEX export_state_created ON export (state, created);
