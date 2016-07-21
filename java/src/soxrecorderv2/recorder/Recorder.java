@@ -18,6 +18,9 @@ import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.RecordTask;
 import soxrecorderv2.common.model.SoxLoginInfo;
 import soxrecorderv2.finder.Finder;
+import soxrecorderv2.logging.SR2LogItem;
+import soxrecorderv2.logging.SR2Logger;
+import soxrecorderv2.logging.SR2PostgresLogWriter;
 import soxrecorderv2.util.ThreadUtil;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
@@ -40,7 +43,8 @@ public class Recorder implements Runnable {
 	};
 	
 	private LinkedBlockingQueue<RecordTask> taskQueue;
-//	private DBWriterProcess writer;
+	private LinkedBlockingQueue<SR2LogItem> logItemQueue;
+	private SR2PostgresLogWriter logWriter;
 	private List<DBWriterProcess> writers;
 	@SuppressWarnings("unused")
 	private List<String> targetServers;
@@ -49,6 +53,7 @@ public class Recorder implements Runnable {
 	private List<ServerRecordProcess> serverRecorders = new ArrayList<>();
 	private Map<String, ServerRecordProcess> server2recorder = new HashMap<>();
 	
+	private Thread logWriterThread;
 	private List<Thread> finderThreads;
 	private List<Thread> recordThreads;
 	private List<Thread> writerThreads;
@@ -148,6 +153,12 @@ public class Recorder implements Runnable {
 		System.out.println("[Recorder][run][0] going to boot");
 //		connManager = new PGConnectionManager(this);
 //		System.out.println("[Recorder][run][1] created connManager");
+		
+		System.out.println("[Recorder][run][0.5] going to prepare log system");
+		logItemQueue = new LinkedBlockingQueue<>(1000);
+		logWriter = new SR2PostgresLogWriter(this, 500);
+		logWriterThread = new Thread(logWriter);
+		logWriterThread.start();
 
 		// 対象のサーバーリストを取得する
 //		try {
@@ -164,6 +175,14 @@ public class Recorder implements Runnable {
 			unifiedTargets.add(fixedServer);
 		}
 		System.out.println("[Recorder][run][2] added FIXED_TARGET_SERVERS");
+		
+		// xmpp subscriptionの状態と, データベースの状態をシンクロさせる
+		for (String soxServer : unifiedTargets) {
+			SoxLoginInfo soxLoginInfo = getDefaultRecorderLoginInfo(soxServer);
+			SubStateSynchronizer synchronizer = new SubStateSynchronizer(this, soxLoginInfo);
+			synchronizer.run();
+			synchronizer.shutdownSubProcess();
+		}
 		
 		// 受信プロセスからDB書き込みプロセスへタスクを渡すキューを準備する
 		taskQueue = new LinkedBlockingQueue<>(100);
@@ -225,7 +244,7 @@ public class Recorder implements Runnable {
 	}
 	
 	public SoxLoginInfo getDefaultRecorderLoginInfo(String soxServer) {
-		return new SoxLoginInfo(soxServer, "soxrecorder", "!htmiro1");
+		return new SoxLoginInfo(soxServer, "soxrecorder", "!htmiro1"); // FIXME
 	}
 	
 	public void stopSoxRecorder() {
@@ -241,20 +260,38 @@ public class Recorder implements Runnable {
 		}
 	}
 
+	/**
+	 * 終了時の処理のため, シャットダウンが可能になっているサブコンポーネントを列挙する
+	 * @return
+	 */
 	public Collection<RecorderSubProcess> getSubProcesses() {
 		List<RecorderSubProcess> subProcesses = new ArrayList<>();
 		subProcesses.addAll(finders);
 		subProcesses.addAll(serverRecorders);
 		subProcesses.addAll(writers);
+		subProcesses.add(logWriter);  // logWriterは最後
 		return subProcesses;
 	}
 	
+	/**
+	 * 終了時の処理のため, 終了を待つためのスレッドの一覧を取得する
+	 * @return
+	 */
 	public Collection<Thread> getSubProcessThreads() {
 		List<Thread> ret = new ArrayList<>();
 		ret.addAll(finderThreads);
 		ret.addAll(recordThreads);
 		ret.addAll(writerThreads);
+		ret.add(logWriterThread);  // logWriterは最後
 		return ret;
+	}
+	
+	public LinkedBlockingQueue<SR2LogItem> getLogItemQueue() {
+		return logItemQueue;
+	}
+	
+	public SR2Logger createLogger(String componentName) {
+		return new SR2Logger(componentName, logItemQueue);
 	}
 	
 }

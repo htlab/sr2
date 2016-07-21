@@ -47,6 +47,8 @@ import jp.ac.keio.sfc.ht.sox.soxlib.SoxDevice;
 import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.RecordTask;
 import soxrecorderv2.common.model.SoxLoginInfo;
+import soxrecorderv2.logging.SR2LogType;
+import soxrecorderv2.logging.SR2Logger;
 import soxrecorderv2.util.PGConnectionManager;
 import soxrecorderv2.util.SOXUtil;
 import soxrecorderv2.util.ThreadUtil;
@@ -84,7 +86,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	 */
 	public class SubscribeThread extends Thread implements StanzaListener {
 		
-		private boolean isRunning = false;
+		private volatile boolean isRunning = false;
 		private SoxConnection soxConnection = null;
 		private boolean isConnected = false;
 		private boolean isErrorFinished = false;
@@ -294,15 +296,17 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	private Recorder parent;
 	private final LinkedBlockingQueue<RecordTask> taskEmitQueue;
 	private final String soxServer;
-	private boolean isRunning;
+	private volatile boolean isRunning;
 	private SubscribeThread subThread;
 	private CountDownLatch subThreadStarted = null;
 	private PGConnectionManager connManager;
+	private SR2Logger logger;
 	
 	private Object subThreadOperationLock = new Object();
 	
 	public ServerRecordProcess(Recorder parent, LinkedBlockingQueue<RecordTask> taskEmitQueue, String soxServer) {
 		this.parent = parent;
+		this.logger = parent.createLogger(getComponentName());
 		this.taskEmitQueue = taskEmitQueue;
 		this.soxServer = soxServer;
 		this.connManager = new PGConnectionManager(parent.getConfig());
@@ -310,6 +314,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 
 	@Override
 	public void run() {
+		logger.info(SR2LogType.RECORD_PROCESS_START, "record process start", soxServer);
 		isRunning = true;
 		subThread = null;
 		
@@ -347,6 +352,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 		
 		shutdownSubThread();
 		System.out.println("[SRP][" + soxServer + "] END OF run()");
+		logger.info(SR2LogType.RECORD_PROCESS_STOP, "record process stop", soxServer);
 	}
 	
 	private void startSubThreadAndWaitConnectionEstablishment() {
@@ -458,6 +464,11 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	@Override
 	public PGConnectionManager getConnManager() {
 		return connManager;
+	}
+
+	@Override
+	public String getComponentName() {
+		return "server_record_process";
 	}
 
 }

@@ -1,5 +1,6 @@
 package soxrecorderv2.recorder;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -20,6 +21,8 @@ import jp.ac.keio.sfc.ht.sox.protocol.TransducerValue;
 import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.RecordTask;
 import soxrecorderv2.common.model.SR2Tables;
+import soxrecorderv2.logging.SR2LogType;
+import soxrecorderv2.logging.SR2Logger;
 import soxrecorderv2.util.GzipUtil;
 import soxrecorderv2.util.HashUtil;
 import soxrecorderv2.util.PGConnectionManager;
@@ -66,11 +69,13 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private Recorder parent;
 	
 	private LinkedBlockingQueue<RecordTask> recordTaskQueue;
-	private boolean isRunning;
+	private volatile boolean isRunning;
 	private PGConnectionManager connManager;
+	private SR2Logger logger;
 	
 	public DBWriterProcess(Recorder parent, LinkedBlockingQueue<RecordTask> recordTaskQueue) {
 		this.parent = parent;
+		this.logger = parent.createLogger(getComponentName());
 		this.recordTaskQueue = recordTaskQueue;
 		this.isRunning = false;
 		this.connManager = new PGConnectionManager(parent.getConfig());
@@ -85,6 +90,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	
 	@Override
 	public void run() {
+		logger.info(SR2LogType.DB_WRITER_START, "db writer start");
 		isRunning = true;
 		
 		while (isRunning) {
@@ -107,11 +113,13 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				// Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("[DBW] wrote! server=" + newTask.getNodeId().getServer() + ", node=" + newTask.getNodeId().getNode());
+//			System.out.println("[DBW] wrote! server=" + newTask.getNodeId().getServer() + ", node=" + newTask.getNodeId().getNode());
 			
 			// FIXME ミドルウェア(PGなど)との通信に失敗したらログにJSON形式で保存してあとで、そこから投入できるようにする
 		}
 		System.err.println("[DBW] END OF run()");
+		connManager.close();
+		logger.info(SR2LogType.DB_WRITER_STOP, "db writer stop");
 	}
 	
 	/**
@@ -141,12 +149,12 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 //			System.out.println("[DBW][w] 1. obid resolved, obid=" + observationId);
 			
 			// 2. recordレコードを作成する。recordのidを取得
-			long recordId = insertDataRecord(observationId, task);
+			long recordId = insertDataRecord(observationId, task, nodeId);
 //			System.out.println("[DBW][w] 2. record inserted");
 			
 			// 3. raw_xmlレコードを作成する。
 			String rawXml = task.getRawXml();
-			insertRawXml(recordId, rawXml);
+			insertRawXml(recordId, rawXml, nodeId);
 //			System.out.println("[DBW][w] 3. raw xml inserted");
 			
 			// 各transducerの値についてrelationさせながらいれていく
@@ -155,12 +163,12 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				String tId = tv.getId();
 				
 				// 4. transducer_idを解決する。必要に応じて, 新規のtransducerレコードを作成してidを得る
-				long dbTdrId = resolveTranducerDatabaseId(observationId, tId);
+				long dbTdrId = resolveTranducerDatabaseId(observationId, tId, nodeId);
 //				System.out.println("[DBW][w][4][" + tId + "] resolved db id: dbTdrId=" + dbTdrId);
 
 				// transducer_raw_valueレコードをつくる
 				boolean hasSameTypedValue = hasSameTypedValue(tv);
-				boolean isRawRecordSuccess = insertTransducerRawValue(observationId, recordId, dbTdrId, tv, hasSameTypedValue);
+				boolean isRawRecordSuccess = insertTransducerRawValue(observationId, recordId, dbTdrId, tv, hasSameTypedValue, nodeId);
 				if (!isRawRecordSuccess) {
 					// FIXME なにかがおかしい
 					System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_raw_value");
@@ -168,7 +176,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 
 				// transducer_typed_valueレコードをつくる(rawとおなじならrawのhas_same_typed_valueをtrueにして作らなくてよい。)
 				if (!hasSameTypedValue) {
-					boolean isTypedRecordSuccess = insertTransducerTypedValue(recordId, dbTdrId, tv);
+					boolean isTypedRecordSuccess = insertTransducerTypedValue(recordId, dbTdrId, tv, nodeId);
 					if (!isTypedRecordSuccess) {
 						// FIXME なにかがおかしい
 						System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_typed_value");
@@ -199,7 +207,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private boolean insertTransducerRawValue(
 			long observationId,
 			long recordId, long transducerRecordId, TransducerValue value,
-			boolean hasSameTypedValue) throws SQLException, IOException, ParseException {
+			boolean hasSameTypedValue, NodeIdentifier nodeId) throws SQLException, IOException, ParseException {
 		Connection conn = connManager.getConnection();
 		
 		String[] fields = {
@@ -220,7 +228,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		
 		int valType = guessValueType(tdrIdentity, rawValue);
 		
-		long tdrRecordId = resolveTranducerDatabaseId(observationId, tdrIdentity);
+		long tdrRecordId = resolveTranducerDatabaseId(observationId, tdrIdentity, nodeId);
 		
 		String sql = SQLUtil.buildInsertSql(SR2Tables.TransducerRawValue, fields);
 		PreparedStatement ps = conn.prepareStatement(sql);
@@ -258,7 +266,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (valType == VALUE_TYPE_LARGE_OBJECT) {
 			byte[] largeObject = null;
 			largeObject = rawValue.getBytes("UTF-8");
-			long largeObjectId = findOrPutLargeObject(largeObject);
+			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
 			ps.setLong(9, largeObjectId);
 		} else {
 //			ps.setLong(9, 0);  // FIXME is this ok?
@@ -274,8 +282,10 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (affectedRows != 1) {
 			// FIXME: something wrong happened
 			System.err.println("[DBW][w][4][raw][" + tdrIdentity + "] could not insert to transducer_raw_value");
+			logger.error(SR2LogType.RAW_VALUE_INSERT_FAILED, "raw value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = false;
 		} else {
+			logger.debug(SR2LogType.RAW_VALUE_INSERT, "raw value insert: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = true;
 		}
 		
@@ -284,7 +294,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	}
 	
 	private boolean insertTransducerTypedValue(
-			long recordId, long transducerRecordId, TransducerValue value) throws SQLException, IOException {
+			long recordId, long transducerRecordId, TransducerValue value, NodeIdentifier nodeId) throws SQLException, IOException {
 		String[] fields = {
 			"record_id",      // 1
 			"value_type",     // 2
@@ -338,7 +348,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (valType == VALUE_TYPE_LARGE_OBJECT) {
 			byte[] largeObject = null;
 			largeObject = rawValue.getBytes("UTF-8");
-			long largeObjectId = findOrPutLargeObject(largeObject);
+			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
 			ps.setLong(8, largeObjectId);
 		} else {
 //			ps.setLong(8, 0);  // FIXME is this ok?
@@ -351,8 +361,10 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (affectedRows != 1) {
 			// FIXME something wrong happened
 			System.err.println("[DBW][w][4][typed][" + tdrIdentity + "] could not insert to transducer_typed_value");
+			logger.error(SR2LogType.TYPED_VALUE_INSERT_FAILED, "typed value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = false;
 		} else {
+			logger.debug(SR2LogType.TYPED_VALUE_INSERT, "typed value insert: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = true;
 		}
 		ps.close();
@@ -400,7 +412,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @return
 	 * @throws SQLException 
 	 */
-	private long insertDataRecord(long observationId, RecordTask recordTask) throws SQLException {
+	private long insertDataRecord(long observationId, RecordTask recordTask, NodeIdentifier nodeId) throws SQLException {
 		Connection conn = connManager.getConnection();
 		
 		// このやりかたはいいのか？ http://alvinalexander.com/java/java-timestamp-example-current-time-now
@@ -420,6 +432,9 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (affectedRows != 1) {
 			// FIXME なにかがおかしい
 			System.err.println("[DBW][w][2] could not insert to record table");
+			logger.error(SR2LogType.RECORD_FAILED, "record failed", nodeId.getServer(), nodeId.getNode());
+		} else {
+			logger.debug(SR2LogType.RECORD, "record", nodeId.getServer(), nodeId.getNode());
 		}
 		ps.close();
 		
@@ -446,12 +461,16 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @throws IOException 
 	 * @throws SQLException 
 	 */
-	private void insertRawXml(long recordId, String rawXml) throws IOException, SQLException {
+	private void insertRawXml(long recordId, String rawXml, NodeIdentifier nodeId) throws IOException, SQLException {
 		String[] fields = { "record_id", "is_gzipped", "raw_xml" };
 		
 		boolean isGzipped = true;  // we know compressed data must be smaller than raw xml
 		byte[] bytesRawXml = rawXml.getBytes("UTF-8");
 		byte[] compressed = GzipUtil.compress(bytesRawXml);
+		if (compressed.length == 0) {
+			logger.warn(SR2LogType.RAW_XML_INSERT_FAILED, "compressed.length=0", nodeId.getServer(), nodeId.getNode());
+		}
+		ByteArrayInputStream contentStream = new ByteArrayInputStream(compressed);
 		
 		Connection conn = connManager.getConnection();
 		final String sql = SQLUtil.buildInsertSql(SR2Tables.RawXml, fields);
@@ -459,13 +478,16 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		
 		ps.setLong(1, recordId);
 		ps.setBoolean(2, isGzipped);
-		ps.setBytes(3, compressed);
+		ps.setBinaryStream(3, contentStream);
 		
 		int affectedRows = ps.executeUpdate();
 		connManager.updateLastCommunicateTime();
-		if (affectedRows != 0) {
+		if (affectedRows != 1) {
 			// FIXME なにかがおかしい
 //			System.out.println("[DBW][w][3] insert to raw_xml failed...");
+			logger.error(SR2LogType.RAW_XML_INSERT_FAILED, "raw xml insert failed, " + ps.getWarnings(), nodeId.getServer(), nodeId.getNode());
+		} else {
+			logger.debug(SR2LogType.RAW_XML_INSERT, "raw xml inserted", nodeId.getServer(), nodeId.getNode());
 		}
 		
 		ps.close();
@@ -478,7 +500,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @throws SQLException 
 	 * @throws IOException 
 	 */
-	private long findOrPutLargeObject(byte[] largeObjectContent) throws SQLException, IOException {
+	private long findOrPutLargeObject(byte[] largeObjectContent, NodeIdentifier nodeId, String transducerId) throws SQLException, IOException {
 		// 1. hash値を計算して、SQLでひいてみる
 		String hexHash = HashUtil.sha256(largeObjectContent);
 		
@@ -526,9 +548,12 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				psPut.setLong(4, contentLength);
 				int affectedRows = psPut.executeUpdate();
 				connManager.updateLastCommunicateTime();
-				if (affectedRows != 0) {
+				if (affectedRows != 1) {
 					// FIXME: なにかがおかしい...
+					logger.error(SR2LogType.LARGE_OBJECT_CREATE_FAILED, "large object insert failed: " + transducerId, nodeId.getServer(), nodeId.getNode());
 					System.err.println("[DBW][w][4][large_object] failed to insert large_object");
+				} else {
+					logger.debug(SR2LogType.LARGE_OBJECT_CREATE, "large object insert: " + transducerId, nodeId.getServer(), nodeId.getNode());
 				}
 				psPut.close();
 				
@@ -564,7 +589,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @param transducerId
 	 * @return
 	 */
-	private long resolveTranducerDatabaseId(Long observationId, String transducerId) throws SQLException {
+	private long resolveTranducerDatabaseId(Long observationId, String transducerId, NodeIdentifier nodeId) throws SQLException {
 		// 1. SQLでひいてみる
 		final Connection conn = connManager.getConnection();
 		final String sql =  "SELECT id FROM transducer WHERE observation_id = ? AND transducer_id = ?;";
@@ -576,7 +601,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		connManager.updateLastCommunicateTime();
 		if (!rs.next()) {
 			// なかった: 追加する
-			System.out.println("[DBW][w][4][tdr] missing transducer_id=" + transducerId + ", going to create");
+//			System.out.println("[DBW][w][4][tdr] missing transducer_id=" + transducerId + ", going to create");
 			final String[] insertFields = { "observation_id", "transducer_id" };
 			final String sqlAdd = SQLUtil.buildInsertSql(SR2Tables.Transducer, insertFields);
 			final PreparedStatement psAdd = conn.prepareStatement(sqlAdd);
@@ -663,6 +688,11 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	@Override
 	public PGConnectionManager getConnManager() {
 		return connManager;
+	}
+
+	@Override
+	public String getComponentName() {
+		return "dbwriter";
 	}
 
 }

@@ -74,6 +74,12 @@ public class SOXUtil {
 		return timestamp;
 	}
 	
+	public static void closeQueitly(SoxConnection conn) {
+		if (conn != null) {
+			conn.disconnect();
+		}
+	}
+	
 	private static List<String> fetchAllSensors(SoxConnection conn) throws NoResponseException, XMPPErrorException, NotConnectedException {
 		try {
 			return conn.getAllSensorList();

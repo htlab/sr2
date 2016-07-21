@@ -9,6 +9,8 @@ import soxrecorderv2.util.PGConnectionManager;
  */
 public interface RecorderSubProcess {
 	
+	public String getComponentName();
+	
 	/**
 	 * このRecorderSubProcessに終了処理を行わせる
 	 * 実際は終了までブロックするわけではなく, 終了のフラグなどをたてたり
