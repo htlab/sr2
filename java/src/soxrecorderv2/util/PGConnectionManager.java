@@ -44,14 +44,14 @@ public class PGConnectionManager {
 	}
 
 	private Connection openConnection() throws SQLException {
-		System.out.println("[PGConnectionManager](0) going to open connection to PostgreSQL");
+//		System.out.println("[PGConnectionManager](0) going to open connection to PostgreSQL");
 		String pgHost     = config.getProperty(CONFIG_KEY_PG_HOST);
 		String pgDatabase = config.getProperty(CONFIG_KEY_PG_DBNAME);
 		String pgUser     = config.getProperty(CONFIG_KEY_PG_USER);
 		String pgPass     = config.getProperty(CONFIG_KEY_PG_PASS);
 		String url = "jdbc:postgresql://" + pgHost + "/" + pgDatabase;
-		System.out.println("[PGConnectionManager](1): host=" + pgHost + ", db=" + pgDatabase + ", user=" + pgUser + ", pass=" + pgPass);
-		System.out.println("[PGConnectionManager](2): url=" + url);
+//		System.out.println("[PGConnectionManager](1): host=" + pgHost + ", db=" + pgDatabase + ", user=" + pgUser + ", pass=" + pgPass);
+//		System.out.println("[PGConnectionManager](2): url=" + url);
 		Connection conn = DriverManager.getConnection(url, pgUser, pgPass);
 		conn.setAutoCommit(false);
 		return conn;
