@@ -183,3 +183,18 @@ CREATE INDEX export_state_created ON export (state, created);
         5: expired(removed) (EXPIRED)
 		-1: ERROR
 */
+
+CREATE TABLE event_log(
+	id bigserial,
+	system varchar(255),
+	component varchar(255),
+	sox_server varchar(255),
+	sox_node varchar(255),
+	message varchar(255),
+	log_level integer,
+	log_type integer,
+	logged_at timestamp,
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX event_log_idx ON event_log (logged_at, log_level, system, component, log_type);
