@@ -37,7 +37,11 @@ public class SOXUtil {
 	
 	public static List<String> fetchAllSensors(SoxLoginInfo soxLoginInfo) throws SmackException, IOException, XMPPException {
 		SoxConnection conn = open(soxLoginInfo);
-		return fetchAllSensors(conn);
+		try {
+			return fetchAllSensors(conn);
+		} finally {
+			conn.disconnect();
+		}
 	}
 	
 	/**
@@ -50,7 +54,11 @@ public class SOXUtil {
 	 */
 	public static List<String> fetchAllSensors(String server) throws SmackException, IOException, XMPPException {
 		SoxConnection anonymousConn = new SoxConnection(server, false);
-		return fetchAllSensors(anonymousConn);
+		try {
+			return fetchAllSensors(anonymousConn);
+		} finally {
+			anonymousConn.disconnect();
+		}
 	}
 	
 	/**
@@ -65,7 +73,11 @@ public class SOXUtil {
 	 */
 	public static List<String> fetchAllSensors(String server, String jid, String password) throws SmackException, IOException, XMPPException {
 		SoxConnection conn = new SoxConnection(server, jid, password, false);
-		return fetchAllSensors(conn);
+		try {
+			return fetchAllSensors(conn);
+		} finally {
+			conn.disconnect();
+		}
 	}
 
 	public static Timestamp parseTransducerTimeStamp(TransducerValue tValue) throws ParseException {
