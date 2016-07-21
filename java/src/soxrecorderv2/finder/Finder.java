@@ -114,7 +114,7 @@ public class Finder implements Runnable, RecorderSubProcess {
 		System.out.println("[Finder][" + soxServer + "] @@@@@ shutdown 2 finished");
 	}
 
-	private List<NodeIdentifier>  retrieveNodes() throws SmackException, IOException, XMPPException {
+	private List<NodeIdentifier> retrieveNodes() throws SmackException, IOException, XMPPException {
 		// this.soxServerにXMPP接続して, ノードのリストを取得する。
 //		List<String> nodes = SOXUtil.fetchAllSensors(parent.getDefaultRecorderLoginInfo(soxServer));
 		List<String> nodes = SOXUtil.fetchAllSensors(soxServer); // FIXME use anonymous to avoid conflict(is this right?)

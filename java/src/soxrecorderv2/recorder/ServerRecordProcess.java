@@ -392,7 +392,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			subThread.start();
 //			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 5");
 			while (isRunning) {
-				System.out.println("[SRP][" + soxServer + "] waiting for connEstablished");
+//				System.out.println("[SRP][" + soxServer + "] waiting for connEstablished");
 				CountDownLatch latch = subThread.getConnEstablished();
 				try {
 					if (latch.await(250, TimeUnit.MILLISECONDS)) {
@@ -402,7 +402,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 					e.printStackTrace();
 				}
 			}
-			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 6");
+//			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 6");
 			subThreadStarted.countDown();
 		}
 //		System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 7 finished");
@@ -432,11 +432,6 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			subThreadStarted.countDown();
 		}
 //		System.out.println("[SRP][" + soxServer + "] ##### forceUnLockSubThreadConnLatch finished");
-	}
-	
-	
-	public SoxConnection open() throws SmackException, IOException, XMPPException {
-		return SOXUtil.open(getSoxLoginInfo());
 	}
 	
 	public void subscribe(NodeIdentifier nodeId) {
