@@ -162,7 +162,8 @@ public class Finder implements Runnable, RecorderSubProcess {
 			"is_existing",           // 6
 			"is_record_stopped",     // 7
 			"is_subscribed",         // 8
-			"created"                // 9
+			"is_subscribe_failed",   // 9
+			"created"                // 10
 		};
 		Connection conn = connManager.getConnection();
 		String sql = SQLUtil.buildInsertSql(SR2Tables.Observation, fields);
@@ -175,16 +176,16 @@ public class Finder implements Runnable, RecorderSubProcess {
 			PreparedStatement ps = conn.prepareStatement(sql);
 //			System.out.println("[Finder][" + soxServer + "][register] 4 prepared sql node=" + nodeId.getNode());
 			
-			ps.setString(1, nodeId.getServer()); // sox_server
-			ps.setString(2, nodeId.getNode());   // sox_node
-			ps.setNull(3, Types.VARCHAR);        // sox_jid
-			ps.setNull(4, Types.VARCHAR);        // sox_password
-			ps.setBoolean(5, true);              // is_using_default_value
-			ps.setBoolean(6, true);              // is_existing
-			ps.setBoolean(7, false);             // is_record_stopped
-			ps.setBoolean(8, false);             // is_subscribed
-			
-			ps.setTimestamp(9, SQLUtil.getCurrentTimestamp());
+			ps.setString(1, nodeId.getServer());               // 1 sox_server
+			ps.setString(2, nodeId.getNode());                 // 2 sox_node
+			ps.setNull(3, Types.VARCHAR);                      // 3 sox_jid
+			ps.setNull(4, Types.VARCHAR);                      // 4 sox_password
+			ps.setBoolean(5, true);                            // 5 is_using_default_value
+			ps.setBoolean(6, true);                            // 6 is_existing
+			ps.setBoolean(7, false);                           // 7 is_record_stopped
+			ps.setBoolean(8, false);                           // 8 is_subscribed
+			ps.setBoolean(9, false);                           // 9 is_subscribe_failed
+			ps.setTimestamp(10, SQLUtil.getCurrentTimestamp()); // 10 created
 //			System.out.println("[Finder][" + soxServer + "][register] 5 before exec node=" + nodeId.getNode());
 			
 			int affectedRows = ps.executeUpdate();

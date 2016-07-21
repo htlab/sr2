@@ -675,6 +675,9 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private boolean hasSameTypedValue(TransducerValue tValue) {
 		String raw = tValue.getRawValue();
 		String typed = tValue.getTypedValue();
+		if (raw == null && typed == null) {
+			return true;
+		}
 		return raw.equals(typed);
 	}
 	

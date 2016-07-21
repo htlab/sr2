@@ -30,6 +30,18 @@ public class NodeIdentifier {
 		return node;
 	}
 	
+	public String getMetaNodeName() {
+		StringBuilder sb = new StringBuilder(node);
+		sb.append("_meta");
+		return sb.toString();
+	}
+	
+	public String getDataNodeName() {
+		StringBuilder sb = new StringBuilder(node);
+		sb.append("_data");
+		return sb.toString();
+	}
+	
 	@Override
 	public boolean equals(Object other) {
 		if (!(other instanceof NodeIdentifier)) {

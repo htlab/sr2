@@ -27,6 +27,7 @@ CREATE TABLE observation(
 	is_record_stopped boolean NOT NULL,
 	is_subscribed boolean NOT NULL,
 	created timestamp NOT NULL,
+	is_subscribe_failed boolean,
 	recent_monthly_average_data_arrival real,
 	recent_monthly_total_data_arrival integer,
 	recent_monthly_data_available_days integer,

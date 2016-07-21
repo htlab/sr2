@@ -34,6 +34,8 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.filter.StanzaTypeFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smackx.pubsub.LeafNode;
+import org.jivesoftware.smackx.pubsub.PubSubManager;
 import org.simpleframework.xml.Serializer;
 import org.simpleframework.xml.core.Persister;
 import org.w3c.dom.Document;
@@ -209,17 +211,32 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 					return;
 				}
 				boolean subError = false;
+//				try {
+////					SoxDevice soxDevice = new SoxDevice(soxConnection, nodeId.getNode());
+////					soxDevice.subscribe();
+//				} catch (Exception e) {
+//					e.printStackTrace();
+//					subError = true;
+//				}
+				XMPPConnection xmppConn = soxConnection.getXMPPConnection();
+				String xmppUser = xmppConn.getUser();
+				PubSubManager pubSubManager = soxConnection.getPubSubManager();
+				String dataNodeName = nodeId.getDataNodeName();
 				try {
-					SoxDevice soxDevice = new SoxDevice(soxConnection, nodeId.getNode());
-					soxDevice.subscribe();
+					LeafNode dataNode = pubSubManager.getNode(dataNodeName);
+					dataNode.subscribe(xmppUser);
 				} catch (Exception e) {
-					e.printStackTrace();
+//					e.printStackTrace();
 					subError = true;
+					logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", nodeId.getServer(), nodeId.getNode());
 				}
+				
 				System.out.println("[SRP][" + soxServer + "][Sub] subscribed '" + nodeId.getNode() + "'");
 
 				// DBのflagをたてる
-				if (!subError) {
+				if (subError) {
+					markAsSubscribedInDatabase(nodeId);
+				} else {
 					try {
 						markAsSubscribedInDatabase(nodeId);
 						System.out.println("[SRP][" + soxServer + "][Sub] marked subscribed '" + nodeId.getNode() + "'");
@@ -231,6 +248,31 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			} catch (Exception e1) {
 				System.err.println("@@@ 2");
 				e1.printStackTrace();  // FIXME
+			}
+		}
+		
+		public void markAsSubscribeFailed(NodeIdentifier nodeId) throws SQLException {
+			Connection conn = connManager.getConnection();
+			Savepoint sp = conn.setSavepoint();
+			boolean problem = false;
+			try {
+				String sql = "UPDATE observation SET is_subscribe_failed = ? WHERE sox_server = ? AND sox_node = ?;";
+				PreparedStatement ps = conn.prepareStatement(sql);
+				ps.setBoolean(1, true);
+				ps.setString(2, nodeId.getServer());
+				ps.setString(3, nodeId.getNode());
+				int affectedRows = ps.executeUpdate();
+				connManager.updateLastCommunicateTime();
+				if (affectedRows != 1) {
+					// FIXME なにかがおかしい
+				}
+				ps.close();
+			} finally {
+				if (problem) {
+					conn.rollback(sp);
+				} else {
+					conn.commit();
+				}
 			}
 		}
 		
@@ -475,10 +517,11 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	public List<NodeIdentifier> getNotSubscribedObservations() throws SQLException {
 		Connection conn = connManager.getConnection();
 
-		String sql = "SELECT sox_node FROM observation WHERE sox_server = ? AND is_subscribed = ?;";
+		String sql = "SELECT sox_node FROM observation WHERE sox_server = ? AND is_subscribed = ? AND is_subscribe_failed = ?;";
 		PreparedStatement ps = conn.prepareStatement(sql);
 		ps.setString(1, soxServer);
 		ps.setBoolean(2, false);
+		ps.setBoolean(3, false);
 		ResultSet rs = ps.executeQuery();
 		connManager.updateLastCommunicateTime();
 		

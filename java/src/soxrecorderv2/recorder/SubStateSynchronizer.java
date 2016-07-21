@@ -14,7 +14,12 @@ import java.util.Set;
 
 import org.apache.commons.collections4.SetUtils;
 import org.jivesoftware.smack.SmackException;
+import org.jivesoftware.smack.SmackException.NoResponseException;
+import org.jivesoftware.smack.SmackException.NotConnectedException;
+import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.XMPPException.XMPPErrorException;
+import org.jivesoftware.smackx.pubsub.LeafNode;
 import org.jivesoftware.smackx.pubsub.PubSubManager;
 import org.jivesoftware.smackx.pubsub.Subscription;
 
@@ -88,8 +93,8 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		
 			// DBにあってsubしていないもの: subする
 			Set<String> soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabase, subscribedSoxNodes).toSet();
-			if (0 < soxNodesInDatabase.size()) {
-				debug("going to subscribe: N=" + soxNodesInDatabase.size());
+			if (0 < soxNodesInDatabaseButNotSubscribed.size()) {
+				debug("going to subscribe: N=" + soxNodesInDatabaseButNotSubscribed.size());
 				subscribeAll(conn, soxNodesInDatabaseButNotSubscribed);
 			} else {
 				debug("no need to subscribe");
@@ -114,10 +119,60 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	private void subscribeAll(SoxConnection conn, Collection<String> soxNodeNames) throws Exception {
+	private void subscribeAll(SoxConnection conn, Collection<String> soxNodeNames) {
+		final String xmppUser = conn.getXMPPConnection().getUser();
+		PubSubManager pubSubManager = conn.getPubSubManager();
+		Set<String> failedNodes = new HashSet<>();
 		for (String soxNodeName : soxNodeNames) {
-			subscribe(conn, soxNodeName);
+			String dataNodeName = soxNodeName + "_data";
+			LeafNode dataNode;
+			try {
+				dataNode = pubSubManager.getNode(dataNodeName);
+			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
+				failedNodes.add(soxNodeName);
+//				e.printStackTrace();  // TODO
+				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to getNode()", getSoxServer(), soxNodeName);
+				continue;
+			}
+			try {
+				dataNode.subscribe(xmppUser);
+			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
+				failedNodes.add(soxNodeName);
+				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", getSoxServer(), soxNodeName);
+//				e.printStackTrace(); // TODO
+			}
 		}
+		
+		if (0 < failedNodes.size()) {
+			
+		}
+	}
+	
+	private void markAsSubscribeFailed(Set<String> failedSoxNodes) throws SQLException {
+		Connection pgConn = pgConnManager.getConnection();
+		StringBuilder sqlBuilder = new StringBuilder("UPDATE observation SET is_subscribe_failed = ? WHERE sox_server = ? AND sox_node IN (");
+		for (int i = 0; i < failedSoxNodes.size(); i++) {
+			if (i != 0) {
+				sqlBuilder.append(",");
+			}
+			sqlBuilder.append("?");
+		}
+		sqlBuilder.append(");");
+		
+		PreparedStatement ps = pgConn.prepareStatement(sqlBuilder.toString());
+		ps.setBoolean(1, true);
+		ps.setString(2, getSoxServer());
+		int j = 0;
+		for (String soxNode : failedSoxNodes) {
+			ps.setString(3 + j, soxNode);
+			j++;
+		}
+		
+		int affectedRows = ps.executeUpdate();
+		if (affectedRows != failedSoxNodes.size()) {
+			// FIXME なにかがおかしい
+		}
+		ps.close();
 	}
 	
 	private Set<String> getSoxNodesInDatabase(String soxServer) throws SQLException {
@@ -198,16 +253,16 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	/**
-	 * 
-	 * @param conn
-	 * @param soxNodeName does not need trailing "_data"
-	 * @throws Exception 
-	 */
-	private void subscribe(SoxConnection conn, String soxNodeName) throws Exception {
-		SoxDevice soxDevice = new SoxDevice(conn, soxNodeName);
-		soxDevice.subscribe();
-	}
+//	/**
+//	 * 
+//	 * @param conn
+//	 * @param soxNodeName does not need trailing "_data"
+//	 * @throws Exception 
+//	 */
+//	private void subscribe(SoxConnection conn, String soxNodeName) throws Exception {
+//		SoxDevice soxDevice = new SoxDevice(conn, soxNodeName);
+//		soxDevice.subscribe();
+//	}
 
 	@Override
 	public void shutdownSubProcess() {
