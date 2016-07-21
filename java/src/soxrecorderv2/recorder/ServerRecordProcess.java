@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -185,32 +186,47 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 		}
 		
 		public void subscribe(NodeIdentifier nodeId) {
-			System.out.println("[SRP][" + soxServer + "][Sub] going to sub!");
+//			System.out.println("[SRP][" + soxServer + "][Sub] going to sub! server=" + nodeId.getServer() + ", node=" + nodeId.getNode());
 			if (!isRunning) {
-				System.out.println("[SRP][" + soxServer + "][Sub] not running, returning.");
+//				System.out.println("[SRP][" + soxServer + "][Sub] not running, returning. server=" + nodeId.getServer() + ", node=" + nodeId.getNode());
 				return;
 			}
 			try {
 				// subする
 				while (isRunning) {
 					// make sure connected to sox server
-					ThreadUtil.countDownLatchAwait(connEstablished, 100);
+//					ThreadUtil.countDownLatchAwait(connEstablished, 100);
+					try {
+						if (connEstablished.await(250, TimeUnit.MILLISECONDS)) {
+							break;
+						}
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 				if (!isRunning && connEstablished.getCount() != 0) {
 					System.out.println("[SRP][" + soxServer + "][Sub] waited subthread's connection, but SRP thread is not running anymore, going to stop subscribe!");
 					return;
 				}
-				SoxDevice soxDevice = new SoxDevice(soxConnection, nodeId.getNode());
-				soxDevice.subscribe();
+				boolean subError = false;
+				try {
+					SoxDevice soxDevice = new SoxDevice(soxConnection, nodeId.getNode());
+					soxDevice.subscribe();
+				} catch (Exception e) {
+					e.printStackTrace();
+					subError = true;
+				}
 				System.out.println("[SRP][" + soxServer + "][Sub] subscribed '" + nodeId.getNode() + "'");
 
 				// DBのflagをたてる
-				try {
-					markAsSubscribedInDatabase(nodeId);
-					System.out.println("[SRP][" + soxServer + "][Sub] marked subscribed '" + nodeId.getNode() + "'");
-				} catch (SQLException e) {
-					System.err.println("@@@ 1");
-					e.printStackTrace();  // FIXME
+				if (!subError) {
+					try {
+						markAsSubscribedInDatabase(nodeId);
+						System.out.println("[SRP][" + soxServer + "][Sub] marked subscribed '" + nodeId.getNode() + "'");
+					} catch (SQLException e) {
+						System.err.println("@@@ 1");
+						e.printStackTrace();  // FIXME
+					}
 				}
 			} catch (Exception e1) {
 				System.err.println("@@@ 2");
@@ -219,34 +235,32 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 		}
 		
 		public void markAsSubscribedInDatabase(NodeIdentifier nodeId) throws SQLException {
-			synchronized(connManager) {
-				Connection conn = connManager.getConnection();
-				Savepoint savePointBeforeMarkAsSubscribe = conn.setSavepoint();  // use transaction
-				boolean problem = false;
-				try {
-					String sql = "UPDATE observation SET is_subscribed = ? WHERE sox_server = ? AND sox_node = ?;";
-					PreparedStatement ps = conn.prepareStatement(sql);
-					
-					ps.setBoolean(1, true);
-					ps.setString(2, nodeId.getServer());
-					ps.setString(3, nodeId.getNode());
-					
-					int affectedRows = ps.executeUpdate();
-					connManager.updateLastCommunicateTime();
-					if (affectedRows != 1) {
-						// FIXME なにかがおかしい
-					}
-					
-					ps.close();
-				} catch (Exception e) {
-					e.printStackTrace();
-					problem = true;
-				} finally {
-					if (problem) {
-						conn.rollback(savePointBeforeMarkAsSubscribe);
-					} else {
-						conn.commit();
-					}
+			Connection conn = connManager.getConnection();
+			Savepoint savePointBeforeMarkAsSubscribe = conn.setSavepoint();  // use transaction
+			boolean problem = false;
+			try {
+				String sql = "UPDATE observation SET is_subscribed = ? WHERE sox_server = ? AND sox_node = ?;";
+				PreparedStatement ps = conn.prepareStatement(sql);
+				
+				ps.setBoolean(1, true);
+				ps.setString(2, nodeId.getServer());
+				ps.setString(3, nodeId.getNode());
+				
+				int affectedRows = ps.executeUpdate();
+				connManager.updateLastCommunicateTime();
+				if (affectedRows != 1) {
+					// FIXME なにかがおかしい
+				}
+				
+				ps.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				problem = true;
+			} finally {
+				if (problem) {
+					conn.rollback(savePointBeforeMarkAsSubscribe);
+				} else {
+					conn.commit();
 				}
 			}
 		}
@@ -265,8 +279,11 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				// Raw XMPP connectionのAPIをつかう
 				XMPPConnection rawXmppConn = soxConnection.getXMPPConnection();
 				rawXmppConn.addAsyncStanzaListener(this, new StanzaTypeFilter(Message.class));
+
+				System.out.println("[SRP][" + soxServer + "][Sub] sox conn opened: added stanza listener");
 				
 				connEstablished.countDown();
+				System.out.println("[SRP][" + soxServer + "][Sub] sox conn opened: connEstablished.countDown() called");
 			} catch (SmackException | IOException | XMPPException e) {
 				e.printStackTrace();
 				isErrorFinished = true;
@@ -279,6 +296,10 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 //				System.out.println("ho ho ho");
 				ThreadUtil.sleep(250);
 			}
+		}
+		
+		public CountDownLatch getConnEstablished() {
+			return connEstablished;
 		}
 		
 		public void stopSubThread() {
@@ -319,12 +340,16 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 		subThread = null;
 		
 		while (isRunning) {
+			System.out.println("[SRP][" + soxServer + "] waiting for sub thread startinig");
 			startSubThreadAndWaitConnectionEstablishment();
+			System.out.println("[SRP][" + soxServer + "] waiting for sub thread startinig: started!");
 			
 			// 起動時の処理: dbにsub済みかどうかflagをたてて, flagがないものはsubするみたいなことをする必要がある
 			try {
 				List<NodeIdentifier> nodesNotSubscribed = getNotSubscribedObservations();  // dbにあるけどsubされてないものをリスト
+				System.out.println("[SRP][" + soxServer + "] got nodes not subscribed");
 				for (NodeIdentifier nodeId : nodesNotSubscribed) {
+//					System.out.println("[SRP][" + soxServer + "] calling subThread.subscribe()");
 					subThread.subscribe(nodeId);  // 順番にsub
 				}
 			} catch (SQLException e) {
@@ -334,11 +359,12 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			}
 			
 			while (isRunning) {
+//				System.out.println("[SRP][" + soxServer + "] sleeping");
 				ThreadUtil.sleep(250);
 				
 				// subthreadが死んだら復活させる
 				if (isRunning && !subThread.isAlive()) {
-					System.out.println("[Finder][" + soxServer + "] subThread is not alive!");
+					System.out.println("[SRP][" + soxServer + "] subThread is not alive!");
 					renewSubThreadStartLatch(); // まだコネクションが晴れてないことを示す
 					break;
 				}
@@ -366,9 +392,17 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			subThread.start();
 //			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 5");
 			while (isRunning) {
-				ThreadUtil.countDownLatchAwait(subThread.connEstablished, 100);
+				System.out.println("[SRP][" + soxServer + "] waiting for connEstablished");
+				CountDownLatch latch = subThread.getConnEstablished();
+				try {
+					if (latch.await(250, TimeUnit.MILLISECONDS)) {
+						break;
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
-//			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 6");
+			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 6");
 			subThreadStarted.countDown();
 		}
 //		System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 7 finished");
@@ -407,7 +441,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	
 	public void subscribe(NodeIdentifier nodeId) {
 		if (!isRunning) {
-			System.out.println("[Finder][" + soxServer + "] is not running, going to return");
+			System.out.println("[SRP][" + soxServer + "] is not running, going to return");
 			return;
 		}
 		subThread.subscribe(nodeId);
@@ -458,6 +492,8 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			String node = rs.getString(1);
 			ret.add(new NodeIdentifier(soxServer, node));
 		}
+		rs.close();
+		ps.close();
 		return ret;
 	}
 

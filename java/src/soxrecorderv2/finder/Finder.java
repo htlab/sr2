@@ -8,7 +8,9 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
@@ -66,17 +68,26 @@ public class Finder implements Runnable, RecorderSubProcess {
 				e1.printStackTrace();
 				continue;
 			}
+		
+			Set<String> nodesInDatabase = null;
+			try {
+				nodesInDatabase = getNodesInDatabase();
+			} catch (SQLException e1) {
+				e1.printStackTrace();  // TODO
+				continue;
+			}
 			
 			// SOX-Recorderに登録されてないものを, 登録する
 			for (NodeIdentifier nodeId : currentExistingNodes) {
 				// FIXME ここでキャッシュを使っていちいちpostgresに問い合わせるコストを減らすべき
+				if (nodesInDatabase.contains(nodeId.getNode())) {
+					continue;
+				}
 				try {
-					boolean isNewlyRegistered = registerIfNotExist(nodeId);
-					if (isNewlyRegistered) {
-						// DBに存在していなかった&&DBに登録した: subscribeする
-						logger.info(SR2LogType.OBSERVATION_CREATE, "create by finder", soxServer, nodeId.getNode());
-						parent.subscribe(nodeId);
-					}
+					// DBに存在していなかった&&DBに登録した: subscribeする
+					register(nodeId);
+					parent.subscribe(nodeId);
+					logger.info(SR2LogType.OBSERVATION_CREATE, "create by finder", soxServer, nodeId.getNode());
 				} catch (SQLException e) {
 					// Auto-generated catch block
 					logger.info(SR2LogType.OBSERVATION_CREATE_FAILED, "create failed by finder", soxServer, nodeId.getNode());
@@ -115,46 +126,23 @@ public class Finder implements Runnable, RecorderSubProcess {
 	}
 	
 	/**
-	 * 
-	 * @param nodeId
-	 * @return true if registered
-	 * @throws SQLException
-	 */
-	private boolean registerIfNotExist(NodeIdentifier nodeId) throws SQLException {
-		if (!isExists(nodeId)) {
-			register(nodeId);
-			return true;
-		} else {
-			return false;
-		}
-	}
-	
-	/**
-	 * postgresのobservationテーブルに存在しているかチェックする
-	 * @param conn
-	 * @param nodeId
+	 * 担当しているsoxServerにひもづいてDBに保存されているすべてのノードのSetを返す
 	 * @return
 	 * @throws SQLException
 	 */
-	private boolean isExists(NodeIdentifier nodeId) throws SQLException {
+	private Set<String> getNodesInDatabase() throws SQLException {
 		Connection conn = connManager.getConnection();
-		String sql = "SELECT id FROM observation WHERE sox_server = ? AND sox_node = ?;";
+		String sql = "SELECT sox_node FROM observation WHERE sox_server = ?;";
 		PreparedStatement ps = conn.prepareStatement(sql);
-		ps.setString(1, nodeId.getServer());
-		ps.setString(2, nodeId.getNode());
-		
+		ps.setString(1, soxServer);
 		ResultSet rs = ps.executeQuery();
-		if (!rs.next()) {
-//			System.out.println("[Finder][" + soxServer + "][isExists] NOT found, node=" + nodeId.getNode());
-			rs.close();
-			ps.close();
-			return false;
-		} else {
-//			System.out.println("[Finder][" + soxServer + "][isExists] found, node=" + nodeId.getNode());
-			rs.close();
-			ps.close();
-			return true;
+		Set<String> ret = new HashSet<>();
+		while (rs.next()) {
+			ret.add(rs.getString(1));
 		}
+		rs.close();
+		ps.close();
+		return ret;
 	}
 	
 	/**
