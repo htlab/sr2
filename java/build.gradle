@@ -21,7 +21,7 @@ sourceSets {
 }
 
 
-task fatJar(type: Jar) {
+task buildRecorder(type: Jar) {
   manifest {
     attributes 'Implementation-Title': 'SOX Recorder 2', 'Implementation-Version': 0.01
     attributes 'Main-Class': 'soxrecorderv2.recorder.Recorder'

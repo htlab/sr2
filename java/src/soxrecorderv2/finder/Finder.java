@@ -15,6 +15,8 @@ import org.jivesoftware.smack.XMPPException;
 
 import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.SR2Tables;
+import soxrecorderv2.logging.SR2LogType;
+import soxrecorderv2.logging.SR2Logger;
 import soxrecorderv2.recorder.Recorder;
 import soxrecorderv2.recorder.RecorderSubProcess;
 import soxrecorderv2.util.PGConnectionManager;
@@ -35,17 +37,20 @@ public class Finder implements Runnable, RecorderSubProcess {
 	
 	private String soxServer;
 	private long intervalSec = DEFAULT_INTERVAL_MSEC;
-	private boolean isRunning;
+	private volatile boolean isRunning;
 	private PGConnectionManager connManager;
+	private SR2Logger logger;
 	
 	public Finder(Recorder parent, String soxServer) {
 		this.parent = parent;
+		this.logger = parent.createLogger(getComponentName());
 		this.soxServer = soxServer;
 		this.connManager = new PGConnectionManager(parent.getConfig());
 	}
 
 	@Override
 	public void run() {
+		logger.info(SR2LogType.FINDER_START, "finder start", soxServer);
 		System.out.println("[Finder][" + soxServer + "] run() start");
 		isRunning = true;
 		
@@ -69,10 +74,12 @@ public class Finder implements Runnable, RecorderSubProcess {
 					boolean isNewlyRegistered = registerIfNotExist(nodeId);
 					if (isNewlyRegistered) {
 						// DBに存在していなかった&&DBに登録した: subscribeする
+						logger.info(SR2LogType.OBSERVATION_CREATE, "create by finder", soxServer, nodeId.getNode());
 						parent.subscribe(nodeId);
 					}
 				} catch (SQLException e) {
 					// Auto-generated catch block
+					logger.info(SR2LogType.OBSERVATION_CREATE_FAILED, "create failed by finder", soxServer, nodeId.getNode());
 					e.printStackTrace();
 					continue;
 				}
@@ -85,6 +92,8 @@ public class Finder implements Runnable, RecorderSubProcess {
 			System.out.println("[Finder][" + soxServer + "] sleep finished.");
 		}
 		System.out.println("[Finder][" + soxServer + "] END OF run()");
+		connManager.close();
+		logger.info(SR2LogType.FINDER_STOP, "finder stopped", soxServer);
 	}
 
 	@Override
@@ -215,6 +224,11 @@ public class Finder implements Runnable, RecorderSubProcess {
 	@Override
 	public PGConnectionManager getConnManager() {
 		return connManager;
+	}
+
+	@Override
+	public String getComponentName() {
+		return "finder";
 	}
 
 }

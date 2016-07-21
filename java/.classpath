@@ -29,7 +29,6 @@
 	<classpathentry kind="lib" path="lib/smack/smack-sasl-provided-4.1.5.jar"/>
 	<classpathentry kind="lib" path="lib/smack/smack-tcp-4.1.5.jar"/>
 	<classpathentry kind="lib" path="lib/JSoxLib.jar"/>
-	<classpathentry kind="lib" path="lib/commons-io-2.5.jar"/>
 	<classpathentry kind="lib" path="lib/jsonic-1.3.10.jar"/>
 	<classpathentry kind="lib" path="lib/httpcomponent-client/commons-codec-1.9.jar"/>
 	<classpathentry kind="lib" path="lib/httpcomponent-client/commons-logging-1.2.jar"/>
@@ -46,5 +45,8 @@
 	<classpathentry kind="lib" path="lib/xpp3-1.1.6.jar"/>
 	<classpathentry kind="lib" path="lib/jaxen-full.jar"/>
 	<classpathentry kind="lib" path="lib/saxpath.jar"/>
+	<classpathentry kind="lib" path="lib/jedis-2.8.1.jar"/>
+	<classpathentry kind="lib" path="lib/commons/commons-io-2.5.jar"/>
+	<classpathentry kind="lib" path="lib/commons/commons-collections4-4.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
