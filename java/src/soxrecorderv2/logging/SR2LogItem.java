@@ -18,7 +18,7 @@ public class SR2LogItem {
 	
 	public SR2LogItem(
 			String system, String component, String soxServer, String soxNode, String message,
-			SR2LogLevel logLevel, SR2LogType logType, Timestamp loggedAt ) {
+			SR2LogLevel logLevel, SR2LogType logType, Timestamp loggedAt) {
 		this.system = system;
 		this.component = component;
 		this.soxServer = soxServer;
