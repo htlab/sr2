@@ -92,6 +92,7 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 			}
 		
 			// DBにあってsubしていないもの: subする
+			soxNodesInDatabase = getSoxNodesInDatabaseNotSubscribeFailed(getSoxServer()); // sub failedのものはsubしない
 			Set<String> soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabase, subscribedSoxNodes).toSet();
 			if (0 < soxNodesInDatabaseButNotSubscribed.size()) {
 				debug("going to subscribe: N=" + soxNodesInDatabaseButNotSubscribed.size());
@@ -148,33 +149,6 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	private void markAsSubscribeFailed(Set<String> failedSoxNodes) throws SQLException {
-		Connection pgConn = pgConnManager.getConnection();
-		StringBuilder sqlBuilder = new StringBuilder("UPDATE observation SET is_subscribe_failed = ? WHERE sox_server = ? AND sox_node IN (");
-		for (int i = 0; i < failedSoxNodes.size(); i++) {
-			if (i != 0) {
-				sqlBuilder.append(",");
-			}
-			sqlBuilder.append("?");
-		}
-		sqlBuilder.append(");");
-		
-		PreparedStatement ps = pgConn.prepareStatement(sqlBuilder.toString());
-		ps.setBoolean(1, true);
-		ps.setString(2, getSoxServer());
-		int j = 0;
-		for (String soxNode : failedSoxNodes) {
-			ps.setString(3 + j, soxNode);
-			j++;
-		}
-		
-		int affectedRows = ps.executeUpdate();
-		if (affectedRows != failedSoxNodes.size()) {
-			// FIXME なにかがおかしい
-		}
-		ps.close();
-	}
-	
 	private Set<String> getSoxNodesInDatabase(String soxServer) throws SQLException {
 		Connection pgConn = pgConnManager.getConnection();
 		Set<String> ret = new HashSet<>();
@@ -182,6 +156,27 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		String sql = "SELECT sox_node FROM observation WHERE sox_server = ?;";
 		PreparedStatement ps = pgConn.prepareStatement(sql);
 		ps.setString(1, getSoxServer());
+		
+		ResultSet rs = ps.executeQuery();
+		pgConnManager.updateLastCommunicateTime();
+		while (rs.next()) {
+			String soxNodeName = rs.getString(1);
+			ret.add(soxNodeName);
+		}
+		rs.close();
+		ps.close();
+		
+		return ret;
+	}
+	
+	private Set<String> getSoxNodesInDatabaseNotSubscribeFailed(String soxServer) throws SQLException {
+		Connection pgConn = pgConnManager.getConnection();
+		Set<String> ret = new HashSet<>();
+		
+		String sql = "SELECT sox_node FROM observation WHERE sox_server = ? AND is_subscribe_failed = ?;";
+		PreparedStatement ps = pgConn.prepareStatement(sql);
+		ps.setString(1, getSoxServer());
+		ps.setBoolean(2, false);
 		
 		ResultSet rs = ps.executeQuery();
 		pgConnManager.updateLastCommunicateTime();
