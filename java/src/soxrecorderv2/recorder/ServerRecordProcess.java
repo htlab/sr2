@@ -267,6 +267,9 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 					// FIXME なにかがおかしい
 				}
 				ps.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+				problem = true;
 			} finally {
 				if (problem) {
 					conn.rollback(sp);
