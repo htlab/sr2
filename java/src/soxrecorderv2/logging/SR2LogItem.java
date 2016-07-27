@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.UUID;
 
 public class SR2LogItem {
 	
@@ -15,6 +16,8 @@ public class SR2LogItem {
 	private final SR2LogLevel logLevel;
 	private final SR2LogType logType;
 	private final Timestamp loggedAt;
+	private final String uuid;
+	private Throwable exception;
 	
 	public SR2LogItem(
 			String system, String component, String soxServer, String soxNode, String message,
@@ -26,6 +29,7 @@ public class SR2LogItem {
 		this.message = message;
 		this.logLevel = logLevel;
 		this.logType = logType;
+		this.uuid = UUID.randomUUID().toString();
 		this.loggedAt = loggedAt;
 	}
 	
@@ -46,6 +50,8 @@ public class SR2LogItem {
 		ps.setInt(6, logLevel.getLevel());
 		ps.setInt(7, logType.getNumber());
 		ps.setTimestamp(8, loggedAt);
+		ps.setString(9, uuid);
+		ps.setBoolean(10, hasStacktrace());
 	}
 
 	public String getSystem() {
@@ -78,6 +84,22 @@ public class SR2LogItem {
 
 	public Timestamp getLoggedAt() {
 		return loggedAt;
+	}
+	
+	public Throwable getException() {
+		return exception;
+	}
+	
+	public void setException(Throwable exception) {
+		this.exception = exception;
+	}
+	
+	public boolean hasStacktrace() {
+		return (exception != null);
+	}
+	
+	public String getUUID() {
+		return uuid;
 	}
 
 }

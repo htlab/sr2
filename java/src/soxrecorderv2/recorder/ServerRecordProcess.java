@@ -46,7 +46,6 @@ import org.xml.sax.SAXException;
 
 import jp.ac.keio.sfc.ht.sox.protocol.Data;
 import jp.ac.keio.sfc.ht.sox.soxlib.SoxConnection;
-import jp.ac.keio.sfc.ht.sox.soxlib.SoxDevice;
 import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.RecordTask;
 import soxrecorderv2.common.model.SoxLoginInfo;
@@ -108,8 +107,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 					doc = DOC_BUILDER.parse(new ByteArrayInputStream(rawXml.getBytes("UTF-8")));
 				}
 			} catch (SAXException | IOException e3) {
-				// TODO Auto-generated catch block
-				e3.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught excpetion during processPacket() in subthread", e3);
 				return;
 			}
 
@@ -119,9 +117,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			try {
 				itemsNode = (Node)xpath.evaluate(XP_ITEMS, doc, XPathConstants.NODE);
 			} catch (XPathExpressionException e2) {
-				// TODO Auto-generated catch block
-				System.err.println("@@@ xml error 1");
-				e2.printStackTrace();
+				logger.error(SR2LogType.JAVA_XPATH_EXCEPTION, "xpath error during processPacket() in subthread", e2);
 				return;
 			}
 			
@@ -139,9 +135,8 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			try {
 				dataNode = (Node)xpath.evaluate(XP_DATA, doc, XPathConstants.NODE);
 			} catch (XPathExpressionException e1) {
-				// TODO Auto-generated catch block
 				System.err.println("@@@@ xml error 2");
-				e1.printStackTrace();
+				logger.error(SR2LogType.JAVA_XPATH_EXCEPTION, "xpath error during processPacket() in subthread(2)", e1);
 				return;
 			}
 			DOMImplementationLS ls = (DOMImplementationLS)doc.getImplementation();
@@ -154,8 +149,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			try {
 				data = serializer.read(Data.class, dataXml);
 			} catch (Exception e) {
-				System.err.println("@@@ 3");
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "serializer.read() failed during processPacket() in subthread", e);
 				return;  // FIXME
 			}
 //			System.out.println("[SRP][" + soxServer + "] parsed data");
@@ -228,7 +222,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				} catch (Exception e) {
 //					e.printStackTrace();
 					subError = true;
-					logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", nodeId.getServer(), nodeId.getNode());
+					logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", nodeId.getServer(), nodeId.getNode(), e);
 				}
 				
 				System.out.println("[SRP][" + soxServer + "][Sub] subscribed '" + nodeId.getNode() + "'");
@@ -241,13 +235,12 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 						markAsSubscribedInDatabase(nodeId);
 						System.out.println("[SRP][" + soxServer + "][Sub] marked subscribed '" + nodeId.getNode() + "'");
 					} catch (SQLException e) {
-						System.err.println("@@@ 1");
-						e.printStackTrace();  // FIXME
+						logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "markAsSubscribedInDatabase() failed", e);
 					}
 				}
 			} catch (Exception e1) {
 				System.err.println("@@@ 2");
-				e1.printStackTrace();  // FIXME
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in SRP", e1);
 			}
 		}
 		
@@ -268,7 +261,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				}
 				ps.close();
 			} catch (SQLException e) {
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception in markAsSubscribeFailed", e);
 				problem = true;
 			} finally {
 				if (problem) {
@@ -299,7 +292,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				
 				ps.close();
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in markAsSubscribedInDatabase()", e);
 				problem = true;
 			} finally {
 				if (problem) {
@@ -330,7 +323,8 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				connEstablished.countDown();
 				System.out.println("[SRP][" + soxServer + "][Sub] sox conn opened: connEstablished.countDown() called");
 			} catch (SmackException | IOException | XMPPException e) {
-				e.printStackTrace();
+//				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception during run() in subthread", e);
 				isErrorFinished = true;
 				return;
 			}
@@ -398,8 +392,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 					subThread.subscribe(nodeId);  // 順番にsub
 				}
 			} catch (SQLException e) {
-				// FIXME
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "uncaught SQL exception in run() in SRP", e);
 				continue;
 			}
 			
@@ -444,7 +437,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 						break;
 					}
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					logger.error(SR2LogType.JAVA_INTERRUPTED_EXCEPTION, "interruped exception in startSubThreadAndWaitConn..", e);
 				}
 			}
 //			System.out.println("[SRP][" + soxServer + "] ##### startSubThreadAndWaitConnectionEstablishment 6");

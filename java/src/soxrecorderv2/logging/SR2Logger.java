@@ -48,27 +48,43 @@ public class SR2Logger {
 	}
 
 	public void warn(SR2LogType type, String message) {
-		warn(type, message, null, null);
+		warn(type, message, null, null, null);
+	}
+
+	public void warn(SR2LogType type, String message, Throwable exception) {
+		warn(type, message, null, null, exception);
 	}
 	
 	public void warn(SR2LogType type, String message, String soxServer) {
-		warn(type, message, soxServer, null);
+		warn(type, message, soxServer, null, null);
+	}
+
+	public void warn(SR2LogType type, String message, String soxServer, String soxNode) {
+		log(SR2LogLevel.WARNING, type, message, soxServer, soxNode, null);
 	}
 	
-	public void warn(SR2LogType type, String message, String soxServer, String soxNode) {
-		log(SR2LogLevel.WARNING, type, message, soxServer, soxNode);
+	public void warn(SR2LogType type, String message, String soxServer, String soxNode, Throwable exception) {
+		log(SR2LogLevel.WARNING, type, message, soxServer, soxNode, exception);
 	}
 
 	public void error(SR2LogType type, String message) {
-		error(type, message, null, null);
+		error(type, message, null, null, null);
+	}
+	
+	public void error(SR2LogType type, String message, Throwable exception) {
+		error(type, message, null, null, exception);
 	}
 	
 	public void error(SR2LogType type, String message, String soxServer) {
-		error(type, message, soxServer, null);
+		error(type, message, soxServer, null, null);
+	}
+
+	public void error(SR2LogType type, String message, String soxServer, String soxNode) {
+		error(type, message, soxServer, soxNode, null);
 	}
 	
-	public void error(SR2LogType type, String message, String soxServer, String soxNode) {
-		log(SR2LogLevel.ERROR, type, message, soxServer, soxNode);
+	public void error(SR2LogType type, String message, String soxServer, String soxNode, Throwable exception) {
+		log(SR2LogLevel.ERROR, type, message, soxServer, soxNode, exception);
 	}
 	
 	public void log(SR2LogLevel level, SR2LogType type, String message) {
@@ -80,8 +96,17 @@ public class SR2Logger {
 	}
 
 	public void log(SR2LogLevel level, SR2LogType type, String message, String soxServer, String soxNode) {
+		log(level, type, message, soxServer, null, null);
+	}
+
+	public void log(SR2LogLevel level, SR2LogType type, String message, String soxServer, String soxNode, Throwable exception) {
 		Timestamp now = SQLUtil.getCurrentTimestamp();
 		SR2LogItem logItem = new SR2LogItem(system, component, soxServer, soxNode, message, level, type, now);
+		
+		if (exception != null) {
+			logItem.setException(exception);
+		}
+		
 		try {
 			logDrain.put(logItem);
 		} catch (InterruptedException e) {

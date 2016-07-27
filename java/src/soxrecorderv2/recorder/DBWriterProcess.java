@@ -84,7 +84,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			Class.forName(PG_DRIVER);
 		} catch (ClassNotFoundException e) {
 			// FIXME: it means PostgreSQL driver was not found
-			e.printStackTrace();
 		}
 	}
 	
@@ -99,8 +98,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			try {
 				newTask = recordTaskQueue.poll(100, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
-				// Auto-generated catch block
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_INTERRUPTED_EXCEPTION, "during task fetching", e);
 			}
 			if (newTask == null) {
 				continue;  // timeout
@@ -111,7 +109,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				writeToDatabase(newTask);
 			} catch (Exception e) {
 				// Auto-generated catch block
-				e.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception", e);
 			}
 //			System.out.println("[DBW] wrote! server=" + newTask.getNodeId().getServer() + ", node=" + newTask.getNodeId().getNode());
 			
@@ -170,7 +168,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				boolean hasSameTypedValue = hasSameTypedValue(tv);
 				boolean isRawRecordSuccess = insertTransducerRawValue(observationId, recordId, dbTdrId, tv, hasSameTypedValue, nodeId);
 				if (!isRawRecordSuccess) {
-					// FIXME なにかがおかしい
 					System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_raw_value");
 				}
 
@@ -178,7 +175,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				if (!hasSameTypedValue) {
 					boolean isTypedRecordSuccess = insertTransducerTypedValue(recordId, dbTdrId, tv, nodeId);
 					if (!isTypedRecordSuccess) {
-						// FIXME なにかがおかしい
 						System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_typed_value");
 					}
 				} else {
@@ -188,7 +184,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 //			System.out.println("[DBW][w][4] finished inserting all transducer values");
 		} catch (Exception e) {
 			gotProblem = true;
-			e.printStackTrace(); // FIXME
+			logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in writeToDatabase", e);
 		} finally {
 			if (gotProblem) {
 				// 問題があったのでrollbackする
@@ -246,14 +242,14 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (valType == VALUE_TYPE_INT) {
 			ps.setInt(6, Integer.parseInt(rawValue));
 		} else {
-			ps.setInt(6, 0);  // FIXME is this ok?
+			ps.setInt(6, 0);
 		}
 		
 		if (valType == VALUE_TYPE_FLOAT || valType == VALUE_TYPE_DECIMAL) {
 			// float_value
 			ps.setDouble(7, Double.parseDouble(rawValue));
 		} else {
-			ps.setDouble(7, 0.0); // FIXME is this ok?
+			ps.setDouble(7, 0.0);
 		}
 		
 		if (valType == VALUE_TYPE_DECIMAL || valType == VALUE_TYPE_FLOAT) {
@@ -269,7 +265,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
 			ps.setLong(9, largeObjectId);
 		} else {
-//			ps.setLong(9, 0);  // FIXME is this ok?
 			ps.setNull(9, Types.INTEGER);
 		}
 		
@@ -280,7 +275,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		connManager.updateLastCommunicateTime();
 		boolean result;
 		if (affectedRows != 1) {
-			// FIXME: something wrong happened
 			System.err.println("[DBW][w][4][raw][" + tdrIdentity + "] could not insert to transducer_raw_value");
 			logger.error(SR2LogType.RAW_VALUE_INSERT_FAILED, "raw value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = false;
@@ -330,7 +324,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		if (valType == VALUE_TYPE_INT) {
 			ps.setInt(5, Integer.parseInt(rawValue));
 		} else {
-			ps.setInt(5, 0);  // FIXME is this ok?
+			ps.setInt(5, 0);
 		}
 		
 		if (valType == VALUE_TYPE_FLOAT || valType == VALUE_TYPE_DECIMAL) {
@@ -351,7 +345,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
 			ps.setLong(8, largeObjectId);
 		} else {
-//			ps.setLong(8, 0);  // FIXME is this ok?
 			ps.setNull(8, Types.INTEGER);
 		}
 		
@@ -359,7 +352,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		connManager.updateLastCommunicateTime();
 		boolean result;
 		if (affectedRows != 1) {
-			// FIXME something wrong happened
 			System.err.println("[DBW][w][4][typed][" + tdrIdentity + "] could not insert to transducer_typed_value");
 			logger.error(SR2LogType.TYPED_VALUE_INSERT_FAILED, "typed value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
 			result = false;
@@ -430,7 +422,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		
 		int affectedRows = ps.executeUpdate();
 		if (affectedRows != 1) {
-			// FIXME なにかがおかしい
 			System.err.println("[DBW][w][2] could not insert to record table");
 			logger.error(SR2LogType.RECORD_FAILED, "record failed", nodeId.getServer(), nodeId.getNode());
 		} else {
@@ -444,7 +435,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		final ResultSet rsGetLastVal = psGetLastVal.executeQuery();
 		connManager.updateLastCommunicateTime();
 		if (!rsGetLastVal.next()) {
-			// FIXME なにかがおかしい
 			System.err.println("[DBW][w][2] could not retrieve lastval() query call");
 		}
 		long insertedRecordId = rsGetLastVal.getLong(1);
@@ -483,7 +473,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		int affectedRows = ps.executeUpdate();
 		connManager.updateLastCommunicateTime();
 		if (affectedRows != 1) {
-			// FIXME なにかがおかしい
 //			System.out.println("[DBW][w][3] insert to raw_xml failed...");
 			logger.error(SR2LogType.RAW_XML_INSERT_FAILED, "raw xml insert failed, " + ps.getWarnings(), nodeId.getServer(), nodeId.getNode());
 		} else {

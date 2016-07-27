@@ -64,8 +64,7 @@ public class Finder implements Runnable, RecorderSubProcess {
 				currentExistingNodes = retrieveNodes();
 				System.out.println("[Finder][" + soxServer + "] got node list, N=" + currentExistingNodes.size());
 			} catch (SmackException | IOException | XMPPException e1) {
-				// Auto-generated catch block
-				e1.printStackTrace();
+				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "unexpected exception in retrieveNodes() in Finder", e1);
 				continue;
 			}
 		
@@ -73,7 +72,7 @@ public class Finder implements Runnable, RecorderSubProcess {
 			try {
 				nodesInDatabase = getNodesInDatabase();
 			} catch (SQLException e1) {
-				e1.printStackTrace();  // TODO
+				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception during getNodesInDatabase() in Finder", e1);
 				continue;
 			}
 			
@@ -89,9 +88,7 @@ public class Finder implements Runnable, RecorderSubProcess {
 					parent.subscribe(nodeId);
 					logger.info(SR2LogType.OBSERVATION_CREATE, "create by finder", soxServer, nodeId.getNode());
 				} catch (SQLException e) {
-					// Auto-generated catch block
-					logger.info(SR2LogType.OBSERVATION_CREATE_FAILED, "create failed by finder", soxServer, nodeId.getNode());
-					e.printStackTrace();
+					logger.error(SR2LogType.OBSERVATION_CREATE_FAILED, "create failed by finder", soxServer, nodeId.getNode(), e);
 					continue;
 				}
 			}
@@ -199,7 +196,7 @@ public class Finder implements Runnable, RecorderSubProcess {
 			}
 			ps.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "uncaught exception in register()", e);
 			problem = true;
 		} finally {
 			if (problem) {

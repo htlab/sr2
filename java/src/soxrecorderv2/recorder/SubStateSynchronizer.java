@@ -1,6 +1,5 @@
 package soxrecorderv2.recorder;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,18 +12,14 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.collections4.SetUtils;
-import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
-import org.jivesoftware.smack.XMPPConnection;
-import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smackx.pubsub.LeafNode;
 import org.jivesoftware.smackx.pubsub.PubSubManager;
 import org.jivesoftware.smackx.pubsub.Subscription;
 
 import jp.ac.keio.sfc.ht.sox.soxlib.SoxConnection;
-import jp.ac.keio.sfc.ht.sox.soxlib.SoxDevice;
 import soxrecorderv2.common.model.SR2Tables;
 import soxrecorderv2.common.model.SoxLoginInfo;
 import soxrecorderv2.logging.SR2LogType;
@@ -100,12 +95,10 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 			} else {
 				debug("no need to subscribe");
 			}
-		} catch (SmackException | IOException | XMPPException e) {
-			e.printStackTrace(); // TODO
 		} catch (SQLException e) {
-			e.printStackTrace(); // TODO
+			logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception in run() in subsync", e);
 		} catch (Exception e) {
-			e.printStackTrace(); // TODO
+			logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in run() in subsync", e);
 		} finally {
 			SOXUtil.closeQueitly(conn);
 			pgConnManager.close();
@@ -131,16 +124,14 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 				dataNode = pubSubManager.getNode(dataNodeName);
 			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
 				failedNodes.add(soxNodeName);
-//				e.printStackTrace();  // TODO
-				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to getNode()", getSoxServer(), soxNodeName);
+				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to getNode()", getSoxServer(), soxNodeName, e);
 				continue;
 			}
 			try {
 				dataNode.subscribe(xmppUser);
 			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
 				failedNodes.add(soxNodeName);
-				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", getSoxServer(), soxNodeName);
-//				e.printStackTrace(); // TODO
+				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", getSoxServer(), soxNodeName, e);
 			}
 		}
 		
@@ -236,7 +227,7 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 			}
 			ps.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception in createObservation() in subsync", e);
 			problem = true;
 		} finally {
 			if (problem) {
