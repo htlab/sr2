@@ -202,7 +202,17 @@ CREATE TABLE event_log(
 	log_level integer,
 	log_type integer,
 	logged_at timestamp,
+	has_stacktrace boolean,
+	uuid varchar(255),
+	PRIMARY KEY (id),
+	UNIQUE (uuid)
+);
+CREATE INDEX event_log_idx ON event_log (logged_at, log_level, system, component, log_type);
+
+CREATE TABLE event_log_stacktrace(
+	id bigserial,
+	event_log_uuid varchar(255) REFERENCES event_log (uuid),
+	stacktrace text,
 	PRIMARY KEY (id)
 );
-
-CREATE INDEX event_log_idx ON event_log (logged_at, log_level, system, component, log_type);
+CREATE INDEX event_log_stacktrace_uuid ON event_log_stacktrace (event_log_uuid);
