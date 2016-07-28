@@ -12,9 +12,12 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.ParseException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -54,23 +57,39 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	
 	public static final Pattern PATTERN_INT;
 	public static final Pattern PATTERN_FLOAT;
+
+	private static final Cache<NodeIdentifier, NodeInfo> cache;
 	
-	public static final String[] DECIMAL_NAMES = {
+	public static final String[] DECIMAL_NAMES_ARRAY = {
 		"lat",
 		"lng",
 		"latitude",
 		"longitude"
 	};
+	public static final Set<String> DECIMAL_NAMES;
 
 	static {
 		Pattern patInt = null;
 		Pattern patFloat = null;
 		
-		patInt = Pattern.compile("\\A-?[0-9]+\\z");
-		patFloat = Pattern.compile("\\A-?[0-9]+\\.[0-9]+\\z");
+		patInt = Pattern.compile("\\A-?[1-9][0-9]*\\z");
+		patFloat = Pattern.compile("\\A-?([0-9]|[1-9][0-9]*)\\.[0-9]+\\z");
+
+		Cache<NodeIdentifier, NodeInfo> cacheTmp = CacheBuilder.newBuilder()
+				.concurrencyLevel(1)
+				.maximumSize(25000)
+				.expireAfterAccess(3600, TimeUnit.SECONDS)
+				.build();
+		
+		Set<String> decimalNames = new HashSet<>();
+		for (String dn : DECIMAL_NAMES_ARRAY) {
+			decimalNames.add(dn);
+		}
 		
 		PATTERN_INT = patInt;
 		PATTERN_FLOAT = patFloat;
+		cache = cacheTmp;
+		DECIMAL_NAMES = Collections.unmodifiableSet(decimalNames);
 	}
 	
 	@SuppressWarnings("unused")
@@ -80,7 +99,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private volatile boolean isRunning;
 	private PGConnectionManager connManager;
 	private SR2Logger logger;
-	private Cache<NodeIdentifier, NodeInfo> cache;
 	
 	public DBWriterProcess(Recorder parent, LinkedBlockingQueue<RecordTask> recordTaskQueue) {
 		this.parent = parent;
@@ -88,11 +106,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		this.recordTaskQueue = recordTaskQueue;
 		this.isRunning = false;
 		this.connManager = new PGConnectionManager(parent.getConfig());
-		
-		this.cache = CacheBuilder.newBuilder()
-				.maximumSize(25000)
-				.expireAfterAccess(3600, TimeUnit.SECONDS)
-				.build();
 		
 		try {
 			Class.forName(PG_DRIVER);
@@ -150,22 +163,27 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		Connection conn = connManager.getConnection();
 		Savepoint savePointBeforeWrite = conn.setSavepoint();
 //		System.out.println("[DBW][w] 0.1 got connection");
-//		conn.setAutoCommit(false);  // start transaction
-//		System.out.println("[DBW][w] 0.2 started transaction");
 		try {
-			final NodeInfo nodeInfo = cache.get(nodeId, new Callable<NodeInfo>() {
+			NodeInfo nodeInfo = cache.get(nodeId, new Callable<NodeInfo>() {
 				@Override
 				public NodeInfo call() throws Exception {
 					return resolveNodeInfo(nodeId, tValues);
 				}
 			});
 			
-			// 1. observationのidをSQLからひいてくる, みつからなかったらトランザクションROLLBACKして終了?
-			long observationId = resolveObservationId(nodeId);
-			if (observationId == 0) {
-				// 解決に失敗している
-				throw new RuntimeException("no such observation");
+			if (!nodeInfo.isCovering(tValues)) {
+				// キャッシュでidがわからないtransducerがあった場合
+				nodeInfo = resolveNodeInfo(nodeId, tValues);
+				cache.put(nodeId, nodeInfo);
 			}
+			
+			// 1. observationのidをSQLからひいてくる, みつからなかったらトランザクションROLLBACKして終了?
+			long observationId = nodeInfo.getObservationId();
+//			long observationId = resolveObservationId(nodeId);
+//			if (observationId == 0) {
+//				// 解決に失敗している
+//				throw new RuntimeException("no such observation");
+//			}
 //			System.out.println("[DBW][w] 1. obid resolved, obid=" + observationId);
 			
 			// 2. recordレコードを作成する。recordのidを取得
@@ -200,6 +218,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			}
 //			System.out.println("[DBW][w][4] finished inserting all transducer values");
 		} catch (Exception e) {
+			e.printStackTrace();
 			gotProblem = true;
 			logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in writeToDatabase", e);
 		} finally {
@@ -217,7 +236,19 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	private NodeInfo resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {
+	private NodeInfo resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) {
+		NodeInfo ret = null;
+		while (ret == null ) {
+			try {
+				ret = _resolveNodeInfo(nodeId, tValues);
+			} catch (SQLException e) {
+				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception during resolveNodeInfo", e);
+			}
+		}
+		return ret;
+	}
+	
+	private NodeInfo _resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {
 		final long observationId = resolveObservationId(nodeId);
 		final Map<String, Long> transducerIdMap = new HashMap<>();
 		for (TransducerValue tValue : tValues) {
@@ -407,12 +438,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	
 	private boolean isDecimalName(String transducerId) {
 		String lowerId = transducerId.toLowerCase();
-		for (String decimalId : DECIMAL_NAMES) {
-			if (decimalId.equals(lowerId)) {
-				return true;
-			}
-		}
-		return false;
+		return DECIMAL_NAMES.contains(lowerId);
 	}
 	
 	/**
