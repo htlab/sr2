@@ -11,13 +11,21 @@ import java.sql.Savepoint;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.ParseException;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import jp.ac.keio.sfc.ht.sox.protocol.Data;
 import jp.ac.keio.sfc.ht.sox.protocol.TransducerValue;
+import soxrecorderv2.cache.NodeInfo;
 import soxrecorderv2.common.model.NodeIdentifier;
 import soxrecorderv2.common.model.RecordTask;
 import soxrecorderv2.common.model.SR2Tables;
@@ -72,6 +80,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private volatile boolean isRunning;
 	private PGConnectionManager connManager;
 	private SR2Logger logger;
+	private Cache<NodeIdentifier, NodeInfo> cache;
 	
 	public DBWriterProcess(Recorder parent, LinkedBlockingQueue<RecordTask> recordTaskQueue) {
 		this.parent = parent;
@@ -79,6 +88,11 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		this.recordTaskQueue = recordTaskQueue;
 		this.isRunning = false;
 		this.connManager = new PGConnectionManager(parent.getConfig());
+		
+		this.cache = CacheBuilder.newBuilder()
+				.maximumSize(25000)
+				.expireAfterAccess(3600, TimeUnit.SECONDS)
+				.build();
 		
 		try {
 			Class.forName(PG_DRIVER);
@@ -127,8 +141,9 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @throws SQLException
 	 */
 	private void writeToDatabase(RecordTask task) throws SQLException {
-		NodeIdentifier nodeId = task.getNodeId();
 		Data soxData = task.getData();
+		final NodeIdentifier nodeId = task.getNodeId();
+		final List<TransducerValue> tValues = soxData.getTransducerValue();
 		
 		// トランザクションを開始する
 		boolean gotProblem = false;
@@ -138,6 +153,13 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 //		conn.setAutoCommit(false);  // start transaction
 //		System.out.println("[DBW][w] 0.2 started transaction");
 		try {
+			final NodeInfo nodeInfo = cache.get(nodeId, new Callable<NodeInfo>() {
+				@Override
+				public NodeInfo call() throws Exception {
+					return resolveNodeInfo(nodeId, tValues);
+				}
+			});
+			
 			// 1. observationのidをSQLからひいてくる, みつからなかったらトランザクションROLLBACKして終了?
 			long observationId = resolveObservationId(nodeId);
 			if (observationId == 0) {
@@ -156,24 +178,19 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 //			System.out.println("[DBW][w] 3. raw xml inserted");
 			
 			// 各transducerの値についてrelationさせながらいれていく
-			List<TransducerValue> tValues = soxData.getTransducerValue();
 			for (TransducerValue tv : tValues) {
 				String tId = tv.getId();
-				
-				// 4. transducer_idを解決する。必要に応じて, 新規のtransducerレコードを作成してidを得る
-				long dbTdrId = resolveTranducerDatabaseId(observationId, tId, nodeId);
-//				System.out.println("[DBW][w][4][" + tId + "] resolved db id: dbTdrId=" + dbTdrId);
 
 				// transducer_raw_valueレコードをつくる
 				boolean hasSameTypedValue = hasSameTypedValue(tv);
-				boolean isRawRecordSuccess = insertTransducerRawValue(observationId, recordId, dbTdrId, tv, hasSameTypedValue, nodeId);
+				boolean isRawRecordSuccess = insertTransducerRawValue(nodeInfo, recordId, tv, hasSameTypedValue);
 				if (!isRawRecordSuccess) {
 					System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_raw_value");
 				}
 
 				// transducer_typed_valueレコードをつくる(rawとおなじならrawのhas_same_typed_valueをtrueにして作らなくてよい。)
 				if (!hasSameTypedValue) {
-					boolean isTypedRecordSuccess = insertTransducerTypedValue(recordId, dbTdrId, tv, nodeId);
+					boolean isTypedRecordSuccess = insertTransducerTypedValue(nodeInfo, recordId, tv);
 					if (!isTypedRecordSuccess) {
 						System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_typed_value");
 					}
@@ -200,10 +217,26 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		}
 	}
 	
+	private NodeInfo resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {
+		final long observationId = resolveObservationId(nodeId);
+		final Map<String, Long> transducerIdMap = new HashMap<>();
+		for (TransducerValue tValue : tValues) {
+			String tId = tValue.getId();
+			long tDatabaseId = resolveTransducerDatabaseId(observationId, tId, nodeId);
+			transducerIdMap.put(tId, tDatabaseId);
+		}
+		
+		return new NodeInfo(nodeId, observationId, transducerIdMap);
+	}
+	
+//	private boolean insertTransducerRawValue(
+//			long observationId,
+//			long recordId, long transducerRecordId, TransducerValue value,
+//			boolean hasSameTypedValue, NodeIdentifier nodeId) throws SQLException, IOException, ParseException {
 	private boolean insertTransducerRawValue(
-			long observationId,
-			long recordId, long transducerRecordId, TransducerValue value,
-			boolean hasSameTypedValue, NodeIdentifier nodeId) throws SQLException, IOException, ParseException {
+			NodeInfo nodeInfo,
+			long recordId, TransducerValue value,
+			boolean hasSameTypedValue) throws SQLException, IOException, ParseException {
 		Connection conn = connManager.getConnection();
 		
 		String[] fields = {
@@ -219,12 +252,16 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			"transducer_timestamp"  // 10
 		};
 		
-		String tdrIdentity = value.getId();
+		final String tdrIdentity = value.getId();
+		final NodeIdentifier nodeId = nodeInfo.getNodeId();
+//		final long observationId = nodeInfo.getObservationId();
+		final long tdrRecordId = nodeInfo.getTransducerIdMap().get(tdrIdentity);
+		
 		String rawValue = value.getRawValue();
 		
 		int valType = guessValueType(tdrIdentity, rawValue);
 		
-		long tdrRecordId = resolveTranducerDatabaseId(observationId, tdrIdentity, nodeId);
+//		long tdrRecordId = resolveTransducerDatabaseId(observationId, tdrIdentity, nodeId);
 		
 		String sql = SQLUtil.buildInsertSql(SR2Tables.TransducerRawValue, fields);
 		PreparedStatement ps = conn.prepareStatement(sql);
@@ -287,8 +324,10 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		return result;
 	}
 	
+//	private boolean insertTransducerTypedValue(
+//			long recordId, long transducerRecordId, TransducerValue value, NodeIdentifier nodeId) throws SQLException, IOException {
 	private boolean insertTransducerTypedValue(
-			long recordId, long transducerRecordId, TransducerValue value, NodeIdentifier nodeId) throws SQLException, IOException {
+			NodeInfo nodeInfo, long recordId, TransducerValue value) throws SQLException, IOException {
 		String[] fields = {
 			"record_id",      // 1
 			"value_type",     // 2
@@ -300,13 +339,16 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			"large_object_id" // 8
 		};
 		
+		final NodeIdentifier nodeId = nodeInfo.getNodeId();
+		final String tdrIdentity = value.getId();
+		final long transducerRecordId = nodeInfo.getTransducerIdMap().get(tdrIdentity);
+		
 		Connection conn = connManager.getConnection();
 		String sql = SQLUtil.buildInsertSql(SR2Tables.TransducerTypedValue, fields);
 		PreparedStatement ps = conn.prepareStatement(sql);
 		
 		ps.setLong(1, recordId);
 
-		String tdrIdentity = value.getId();
 		String rawValue = value.getRawValue();
 		
 		int valType = guessValueType(tdrIdentity, rawValue);
@@ -578,7 +620,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	 * @param transducerId
 	 * @return
 	 */
-	private long resolveTranducerDatabaseId(Long observationId, String transducerId, NodeIdentifier nodeId) throws SQLException {
+	private long resolveTransducerDatabaseId(Long observationId, String transducerId, NodeIdentifier nodeId) throws SQLException {
 		// 1. SQLでひいてみる
 		final Connection conn = connManager.getConnection();
 		final String sql =  "SELECT id FROM transducer WHERE observation_id = ? AND transducer_id = ?;";

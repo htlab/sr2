@@ -48,5 +48,6 @@
 	<classpathentry kind="lib" path="lib/jedis-2.8.1.jar"/>
 	<classpathentry kind="lib" path="lib/commons/commons-io-2.5.jar"/>
 	<classpathentry kind="lib" path="lib/commons/commons-collections4-4.1.jar"/>
+	<classpathentry kind="lib" path="lib/guava-19.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
