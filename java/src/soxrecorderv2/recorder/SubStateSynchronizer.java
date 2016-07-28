@@ -72,6 +72,19 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 				}
 			}
 			debug("found " + subscribedSoxNodes.size() + " nodes in subscription");
+
+			// blacklistにあるものをsubしてたら、まずsub解除
+			Set<String> blacklistedNodes = getBlacklistedNodesInDatabase(getSoxServer());
+			debug("N-blacklist=" + blacklistedNodes.size());
+			Set<String> blacklistIntersection = SetUtils.intersection(subscribedSoxNodes, blacklistedNodes).toSet();
+			if (0 < blacklistIntersection.size()) {
+				debug("going to unsub " + blacklistIntersection.size() + " nodes because of blacklisted.");
+				unsubscribeAll(conn, blacklistIntersection);
+				
+				subscribedSoxNodes = SetUtils.difference(subscribedSoxNodes, blacklistIntersection).toSet();
+			} else {
+				debug("no unsub for blacklist");
+			}
 			
 			// DBにある, このSubStateSynchronizerが担当しているserverのnode listを取得
 			Set<String> soxNodesInDatabase = getSoxNodesInDatabase(getSoxServer());
@@ -89,6 +102,7 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 			// DBにあってsubしていないもの: subする
 			soxNodesInDatabase = getSoxNodesInDatabaseNotSubscribeFailed(getSoxServer()); // sub failedのものはsubしない
 			Set<String> soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabase, subscribedSoxNodes).toSet();
+			soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabaseButNotSubscribed, blacklistedNodes).toSet();
 			if (0 < soxNodesInDatabaseButNotSubscribed.size()) {
 				debug("going to subscribe: N=" + soxNodesInDatabaseButNotSubscribed.size());
 				subscribeAll(conn, soxNodesInDatabaseButNotSubscribed);
@@ -113,10 +127,11 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	private void subscribeAll(SoxConnection conn, Collection<String> soxNodeNames) {
+	private void subscribeAll(SoxConnection conn, Collection<String> soxNodeNames) throws SQLException {
 		final String xmppUser = conn.getXMPPConnection().getUser();
 		PubSubManager pubSubManager = conn.getPubSubManager();
 		Set<String> failedNodes = new HashSet<>();
+		Set<String> sucNodes = new HashSet<>();
 		for (String soxNodeName : soxNodeNames) {
 			String dataNodeName = soxNodeName + "_data";
 			LeafNode dataNode;
@@ -133,11 +148,91 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 				failedNodes.add(soxNodeName);
 				logger.warn(SR2LogType.SUBSCRIBE_FAILED, "failed to subscribe", getSoxServer(), soxNodeName, e);
 			}
+			
+			sucNodes.add(soxNodeName);
 		}
 		
 		if (0 < failedNodes.size()) {
-			
+			// FIXME: なにかする？
 		}
+		
+		updateSubscribeStatus(true, getSoxServer(), sucNodes);
+	}
+	
+	private void unsubscribeAll(SoxConnection conn, Collection<String> soxNodeNames) throws SQLException {
+		final String xmppUser = conn.getXMPPConnection().getUser();
+		PubSubManager pubSubManager = conn.getPubSubManager();
+		Set<String> sucNodes = new HashSet<>();
+		Set<String> failedNodes = new HashSet<>();
+		for (String soxNodeName : soxNodeNames) {
+			String dataNodeName = soxNodeName + "_data";
+			LeafNode dataNode;
+			try {
+				dataNode = pubSubManager.getNode(dataNodeName);
+			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
+				failedNodes.add(soxNodeName);
+				logger.warn(SR2LogType.UNSUBSCRIBE_FAILED, "unsub failed", getSoxServer(), soxNodeName, e);
+				continue;
+			}
+			
+			try {
+				dataNode.unsubscribe(xmppUser);
+			} catch (NoResponseException | XMPPErrorException | NotConnectedException e) {
+				failedNodes.add(soxNodeName);
+				logger.warn(SR2LogType.UNSUBSCRIBE_FAILED, "unsub failed(2)", getSoxServer(), soxNodeName, e);
+			}
+			
+			sucNodes.add(soxNodeName);
+		}
+		
+		updateSubscribeStatus(false, getSoxServer(), sucNodes);
+	}
+	
+	private void updateSubscribeStatus(boolean isSubscribed, String soxServer, Collection<String> soxNodeNames) throws SQLException {
+		if (soxNodeNames.isEmpty()) {
+			return;
+		}
+		boolean problem = false;
+		Connection pgConn = getConnManager().getConnection();
+		Savepoint sp = pgConn.setSavepoint();
+		String sql = "UPDATE observation SET is_subscribed = ? WHERE sox_server = ? AND sox_node = ?;";
+		PreparedStatement ps = pgConn.prepareStatement(sql);
+		try {
+			for (String soxNodeName : soxNodeNames) {
+				ps.setBoolean(1, true);
+				ps.setString(2, soxServer);
+				ps.setString(3, soxNodeName);
+				ps.executeUpdate();
+				getConnManager().updateLastCommunicateTime();
+			}
+		} catch (Exception e) {
+			problem = true;
+		} finally {
+			if (problem) {
+				pgConn.rollback(sp);
+			} else {
+				pgConn.commit();
+			}
+		}
+	}
+	
+	private Set<String> getBlacklistedNodesInDatabase(String soxServer) throws SQLException {
+		Connection pgConn = pgConnManager.getConnection();
+		Set<String> ret = new HashSet<>();
+		String sql = "SELECT sox_node FROM blacklist WHERE sox_server = ? ;";
+		PreparedStatement ps = pgConn.prepareStatement(sql);
+		ps.setString(1, soxServer);
+		
+		ResultSet rs = ps.executeQuery();
+		while (rs.next()) {
+			String soxNodeName = rs.getString(1);
+			ret.add(soxNodeName);
+		}
+		
+		rs.close();
+		ps.close();
+		
+		return ret;
 	}
 	
 	private Set<String> getSoxNodesInDatabase(String soxServer) throws SQLException {
@@ -146,7 +241,7 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		
 		String sql = "SELECT sox_node FROM observation WHERE sox_server = ?;";
 		PreparedStatement ps = pgConn.prepareStatement(sql);
-		ps.setString(1, getSoxServer());
+		ps.setString(1, soxServer);
 		
 		ResultSet rs = ps.executeQuery();
 		pgConnManager.updateLastCommunicateTime();

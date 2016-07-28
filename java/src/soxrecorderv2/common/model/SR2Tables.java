@@ -17,6 +17,7 @@ public class SR2Tables {
 	public static final String TransducerRawValue = "transducer_raw_value";
 	public static final String TransducerTypedValue = "transducer_typed_value";
 	public static final String EventLog = "event_log";
+	public static final String BlackList = "blacklist";
 
 	private SR2Tables() {
 		// you cannot instantiate this class

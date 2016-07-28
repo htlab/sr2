@@ -46,7 +46,9 @@ public enum SR2LogType {
 	JAVA_SQL_EXCEPTION         ( 20022 ),
 	JAVA_XPATH_EXCEPTION       ( 20023 ),
 	
-	RECORD_GIVE_UP             ( 20024 )
+	RECORD_GIVE_UP             ( 20024 ),
+	
+	UNSUBSCRIBE_FAILED         ( 20025 )
 	
 	;
 	
