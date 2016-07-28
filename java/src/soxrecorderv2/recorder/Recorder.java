@@ -155,7 +155,7 @@ public class Recorder implements Runnable {
 //		System.out.println("[Recorder][run][1] created connManager");
 		
 		System.out.println("[Recorder][run][0.5] going to prepare log system");
-		logItemQueue = new LinkedBlockingQueue<>(1000);
+		logItemQueue = new LinkedBlockingQueue<>(10000);
 		logWriter = new SR2PostgresLogWriter(this, 500);
 		logWriterThread = new Thread(logWriter);
 		logWriterThread.start();
@@ -185,7 +185,7 @@ public class Recorder implements Runnable {
 		}
 		
 		// 受信プロセスからDB書き込みプロセスへタスクを渡すキューを準備する
-		taskQueue = new LinkedBlockingQueue<>(100);
+		taskQueue = new LinkedBlockingQueue<>(2500);
 		System.out.println("[Recorder][run][3] prepared taskQueue");
 		
 		// 受信したデータをDBに書き込むプロセスを開始する
