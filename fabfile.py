@@ -95,7 +95,9 @@ def setup():
             owner='root', group='root', use_sudo=True
         )
 
-    _setup_postgresql()
+    pg_flag_file = '/usr/local/%s/pgsetup.flag' % app_name
+    if not is_file(pg_flag_file):
+        _setup_postgresql()
 
     deploy()
 
@@ -127,12 +129,39 @@ def _setup_postgresql():
     )
 
     # TODO: psql に pg user つくる
-    require.postgres.user('sr2', password='sr2miro')
+    _setup_pg_user()
 
     # TODO: psql に pg db つくる
-    require.postgres.database('sr2', owner='sr2')
+    _setup_pg_db()
 
     # TODO: psql にschemaながしこむ
+    _setup_pg_schema()
+
+
+@task
+def setup_pg_user():
+    _setup_pg_user()
+
+
+def _setup_pg_user():
+    require.postgres.user('sr2', password='sr2miro')
+
+
+@task
+def setup_pg_db():
+    _setup_pg_db()
+
+
+def _setup_pg_db():
+    require.postgres.database('sr2', owner='sr2')
+
+
+@task
+def setup_pg_schema():
+    _setup_pg_schema()
+
+
+def _setup_pg_schema():
     schema_flag_file = '/usr/local/%s/schema.flag' % app_name
     if not is_file(schema_flag_file):
         schema_file = './schema.sql'
