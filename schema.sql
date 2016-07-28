@@ -216,3 +216,10 @@ CREATE TABLE event_log_stacktrace(
 	PRIMARY KEY (id)
 );
 CREATE INDEX event_log_stacktrace_uuid ON event_log_stacktrace (event_log_uuid);
+
+CREATE TABLE blacklist(
+	sox_server varchar(255) NOT NULL,
+	sox_node varchar(255) NOT NULL,
+	memo varchar(255),
+	PRIMARY KEY (sox_server, sox_node)
+);
