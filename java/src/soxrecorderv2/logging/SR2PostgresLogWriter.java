@@ -80,7 +80,9 @@ public class SR2PostgresLogWriter implements Runnable, RecorderSubProcess {
 			
 			long sleep = interval - timeConsumed;
 //			debug("going to sleep " + sleep + "msec");
-			ThreadUtil.sleep(sleep);
+			if (0 < sleep) {
+				ThreadUtil.sleep(sleep);
+			}
 //			debug("sleep ok");
 		}
 		
