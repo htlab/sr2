@@ -24,6 +24,7 @@ import soxrecorderv2.recorder.RecorderSubProcess;
 import soxrecorderv2.util.PGConnectionManager;
 import soxrecorderv2.util.SOXUtil;
 import soxrecorderv2.util.SQLUtil;
+import soxrecorderv2.util.SR2DatabaseUtil;
 import soxrecorderv2.util.ThreadUtil;
 
 /**
@@ -67,6 +68,14 @@ public class Finder implements Runnable, RecorderSubProcess {
 				logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "unexpected exception in retrieveNodes() in Finder", e1);
 				continue;
 			}
+			
+			Set<String> blacklist;
+			try {
+				blacklist = getBlacklist();
+			} catch (SQLException e2) {
+				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception during blacklist fetch", e2);
+				continue;
+			}
 		
 			Set<String> nodesInDatabase = null;
 			try {
@@ -79,6 +88,9 @@ public class Finder implements Runnable, RecorderSubProcess {
 			// SOX-Recorderに登録されてないものを, 登録する
 			for (NodeIdentifier nodeId : currentExistingNodes) {
 				// FIXME ここでキャッシュを使っていちいちpostgresに問い合わせるコストを減らすべき
+				if (blacklist.contains(nodeId.getNode())) {
+					continue;
+				}
 				if (nodesInDatabase.contains(nodeId.getNode())) {
 					continue;
 				}
@@ -109,6 +121,13 @@ public class Finder implements Runnable, RecorderSubProcess {
 		System.out.println("[Finder][" + soxServer + "] @@@@@ shutdown 1");
 		isRunning = false;
 		System.out.println("[Finder][" + soxServer + "] @@@@@ shutdown 2 finished");
+	}
+	
+	private Set<String> getBlacklist() throws SQLException {
+		Connection conn = connManager.getConnection();
+		Set<String> ret = SR2DatabaseUtil.getBlacklistNodes(conn, soxServer);
+		connManager.updateLastCommunicateTime();
+		return ret;
 	}
 
 	private List<NodeIdentifier> retrieveNodes() throws SmackException, IOException, XMPPException {

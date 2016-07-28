@@ -27,6 +27,7 @@ import soxrecorderv2.logging.SR2Logger;
 import soxrecorderv2.util.PGConnectionManager;
 import soxrecorderv2.util.SOXUtil;
 import soxrecorderv2.util.SQLUtil;
+import soxrecorderv2.util.SR2DatabaseUtil;
 
 /**
  * NOTE: this component is not supposed to be run as a thread.
@@ -218,20 +219,8 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 	
 	private Set<String> getBlacklistedNodesInDatabase(String soxServer) throws SQLException {
 		Connection pgConn = pgConnManager.getConnection();
-		Set<String> ret = new HashSet<>();
-		String sql = "SELECT sox_node FROM blacklist WHERE sox_server = ? ;";
-		PreparedStatement ps = pgConn.prepareStatement(sql);
-		ps.setString(1, soxServer);
-		
-		ResultSet rs = ps.executeQuery();
-		while (rs.next()) {
-			String soxNodeName = rs.getString(1);
-			ret.add(soxNodeName);
-		}
-		
-		rs.close();
-		ps.close();
-		
+		Set<String> ret = SR2DatabaseUtil.getBlacklistNodes(pgConn, soxServer);
+		pgConnManager.updateLastCommunicateTime();
 		return ret;
 	}
 	
