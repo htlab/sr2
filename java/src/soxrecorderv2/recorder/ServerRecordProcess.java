@@ -169,7 +169,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 			}
 			if (isRunning && putTryCount == 0) {
 				System.err.println("[SRP][" + soxServer + "] congestion! gave up to put into queue");
-				// FIXME ロギングする
+				logger.error(SR2LogType.RECORD_GIVE_UP, "congestion! gave up to put into write queue", nodeId.getServer(), nodeId.getNode());
 			}
 		}
 		
