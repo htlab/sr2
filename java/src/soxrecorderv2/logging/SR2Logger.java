@@ -96,7 +96,7 @@ public class SR2Logger {
 	}
 
 	public void log(SR2LogLevel level, SR2LogType type, String message, String soxServer, String soxNode) {
-		log(level, type, message, soxServer, null, null);
+		log(level, type, message, soxServer, soxNode, null);
 	}
 
 	public void log(SR2LogLevel level, SR2LogType type, String message, String soxServer, String soxNode, Throwable exception) {
