@@ -63,6 +63,8 @@ import soxrecorderv2.util.ThreadUtil;
  */
 public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 	
+	public static final long CONNECTION_RENEW_PERIOD = 60 * 30 * 1000;  // 30min
+//	public static final long CONNECTION_RENEW_PERIOD = 60 * 2 * 1000;  // 2min
 	private static final DocumentBuilder DOC_BUILDER;
 	private static final XPathFactory XPATH_FACTORY = XPathFactory.newInstance();
 	private static final String XP_ITEMS = "//items";
@@ -381,6 +383,7 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 		while (isRunning) {
 			System.out.println("[SRP][" + soxServer + "] waiting for sub thread startinig");
 			startSubThreadAndWaitConnectionEstablishment();
+			long connectedAt = System.currentTimeMillis();
 			System.out.println("[SRP][" + soxServer + "] waiting for sub thread startinig: started!");
 			
 			// 起動時の処理: dbにsub済みかどうかflagをたてて, flagがないものはsubするみたいなことをする必要がある
@@ -404,6 +407,14 @@ public class ServerRecordProcess implements Runnable, RecorderSubProcess {
 				if (isRunning && !subThread.isAlive()) {
 					System.out.println("[SRP][" + soxServer + "] subThread is not alive!");
 					renewSubThreadStartLatch(); // まだコネクションが晴れてないことを示す
+					break;
+				} else if (isRunning && CONNECTION_RENEW_PERIOD < (System.currentTimeMillis() - connectedAt)) {
+					// 一定時間経過 => コネクション貼り直し
+					System.out.println("[SRP][" + soxServer + "] renew connection");
+					logger.info(SR2LogType.SOX_CONN_RENEW, "renew connection", soxServer);
+					shutdownSubThread();
+					renewSubThreadStartLatch();
+					logger.debug(SR2LogType.SOX_CONN_RENEW, "renew connection: ok", soxServer);
 					break;
 				}
 			}
