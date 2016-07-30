@@ -48,7 +48,9 @@ public enum SR2LogType {
 	
 	RECORD_GIVE_UP             ( 20024 ),
 	
-	UNSUBSCRIBE_FAILED         ( 20025 )
+	UNSUBSCRIBE_FAILED         ( 20025 ),
+	
+	SOX_CONN_RENEW             ( 10026 )
 	
 	;
 	
