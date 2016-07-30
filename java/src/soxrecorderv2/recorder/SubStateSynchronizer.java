@@ -102,8 +102,11 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		
 			// DBにあってsubしていないもの: subする
 			soxNodesInDatabase = getSoxNodesInDatabaseNotSubscribeFailed(getSoxServer()); // sub failedのものはsubしない
+			debug("soxNodesInDatabase=" + soxNodesInDatabase.size());
 			Set<String> soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabase, subscribedSoxNodes).toSet();
+			debug("soxNodesInDatabaesButNotSubscribed=" + soxNodesInDatabaseButNotSubscribed.size());
 			soxNodesInDatabaseButNotSubscribed = SetUtils.difference(soxNodesInDatabaseButNotSubscribed, blacklistedNodes).toSet();
+			debug("soxNodesInDatabaesButNotSubscribed(after diff of blacklist)=" + soxNodesInDatabaseButNotSubscribed.size());
 			if (0 < soxNodesInDatabaseButNotSubscribed.size()) {
 				debug("going to subscribe: N=" + soxNodesInDatabaseButNotSubscribed.size());
 				subscribeAll(conn, soxNodesInDatabaseButNotSubscribed);
@@ -112,8 +115,10 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 			}
 		} catch (SQLException e) {
 			logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception in run() in subsync", e);
+			e.printStackTrace();
 		} catch (Exception e) {
 			logger.error(SR2LogType.JAVA_GENERAL_EXCEPTION, "uncaught exception in run() in subsync", e);
+			e.printStackTrace();
 		} finally {
 			SOXUtil.closeQueitly(conn);
 			pgConnManager.close();
@@ -248,7 +253,7 @@ public class SubStateSynchronizer implements Runnable, RecorderSubProcess {
 		Connection pgConn = pgConnManager.getConnection();
 		Set<String> ret = new HashSet<>();
 		
-		String sql = "SELECT sox_node FROM observation WHERE sox_server = ? AND is_subscribe_failed = ?;";
+		String sql = "SELECT sox_node FROM observation WHERE sox_server = ? AND (is_subscribe_failed = ? OR is_subscribe_failed IS NULL);";
 		PreparedStatement ps = pgConn.prepareStatement(sql);
 		ps.setString(1, getSoxServer());
 		ps.setBoolean(2, false);
