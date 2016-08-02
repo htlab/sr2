@@ -86,6 +86,20 @@ public class SOXUtil {
 		return Collections.unmodifiableList(ret);
 	}
 	
+	public static Collection<LargeObjectContainer> uniqueLargeObjects(Collection<LargeObjectContainer> largeObjects) {
+		Set<String> hashes = new HashSet<>();
+		List<LargeObjectContainer> ret = new ArrayList<>();
+		for (LargeObjectContainer loContainer : largeObjects) {
+			String hash = loContainer.getHash();
+			if (hashes.contains(hash)) {
+				continue;
+			}
+			ret.add(loContainer);
+			hashes.add(hash);
+		}
+		return ret;
+	}
+	
 	public static int guessValueType(final TransducerValue tValue, boolean isRaw) {
 		final String val = (isRaw) ? tValue.getRawValue() : tValue.getTypedValue();
 		return guessValueType(tValue.getId(), val);

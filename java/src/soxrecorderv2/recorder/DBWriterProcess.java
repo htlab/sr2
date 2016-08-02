@@ -168,7 +168,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		boolean gotProblem = false;
 		Connection conn = connManager.getConnection();
 		Savepoint savePointBeforeWrite = conn.setSavepoint();
-//		System.out.println("[DBW][w] 0.1 got connection");
 		try {
 			NodeInfo nodeInfo = cache.get(nodeId, new Callable<NodeInfo>() {
 				@Override
@@ -185,21 +184,13 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			
 			// 1. observationのidをSQLからひいてくる, みつからなかったらトランザクションROLLBACKして終了?
 			long observationId = nodeInfo.getObservationId();
-//			long observationId = resolveObservationId(nodeId);
-//			if (observationId == 0) {
-//				// 解決に失敗している
-//				throw new RuntimeException("no such observation");
-//			}
-//			System.out.println("[DBW][w] 1. obid resolved, obid=" + observationId);
 			
 			// 2. recordレコードを作成する。recordのidを取得
 			long recordId = insertDataRecord(observationId, task, nodeId);
-//			System.out.println("[DBW][w] 2. record inserted");
 			
 			// 3. raw_xmlレコードを作成する。
 			String rawXml = task.getRawXml();
 			insertRawXml(recordId, rawXml, nodeId);
-//			System.out.println("[DBW][w] 3. raw xml inserted");
 			
 			Collection<LargeObjectContainer> largeObjects = SOXUtil.extractLargeObjects(tValues);
 			Map<String, Long> loInfo = resolveLargeObjects(largeObjects);
@@ -209,31 +200,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			if (0 < originalTypedValues.size()) {
 				insertTypedValues(nodeInfo, recordId, originalTypedValues, loInfo);
 			}
-			
-			
-			
-//			// 各transducerの値についてrelationさせながらいれていく
-//			for (TransducerValue tv : tValues) {
-//				String tId = tv.getId();
-//
-//				// transducer_raw_valueレコードをつくる
-//				boolean hasSameTypedValue = SOXUtil.hasSameTypedValue(tv);
-//				boolean isRawRecordSuccess = insertTransducerRawValue(nodeInfo, recordId, tv, hasSameTypedValue);
-//				if (!isRawRecordSuccess) {
-//					System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_raw_value");
-//				}
-//
-//				// transducer_typed_valueレコードをつくる(rawとおなじならrawのhas_same_typed_valueをtrueにして作らなくてよい。)
-//				if (!hasSameTypedValue) {
-//					boolean isTypedRecordSuccess = insertTransducerTypedValue(nodeInfo, recordId, tv);
-//					if (!isTypedRecordSuccess) {
-//						System.err.println("[DBW][w][4][" + tId + "] failed to insert to transducer_typed_value");
-//					}
-//				} else {
-////					System.out.println("[DBW][w][4][" + tId + "] no need to insert transducer_typed_value");
-//				}
-//			}
-//			System.out.println("[DBW][w][4] finished inserting all transducer values");
 		} catch (Exception e) {
 			e.printStackTrace();
 			gotProblem = true;
@@ -246,9 +212,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				System.err.println("[DBW][w] something bad happened! rollback");
 			} else {
 				// トランザクションをcommitする
-//				System.out.println("[DBW][w] going to commit transaction");
 				conn.commit();
-//				System.out.println("[DBW][w] transaction commited");
 			}
 		}
 	}
@@ -268,12 +232,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 	private NodeInfo _resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {
 		final long observationId = resolveObservationId(nodeId);
 		final Map<String, Long> transducerIdMap = resolveTransducers(observationId, SOXUtil.extractTransducerIds(tValues), nodeId);
-//		final Map<String, Long> transducerIdMap = new HashMap<>();
-//		for (TransducerValue tValue : tValues) {
-//			String tId = tValue.getId();
-//			long tDatabaseId = resolveTransducerDatabaseId(observationId, tId, nodeId);
-//			transducerIdMap.put(tId, tDatabaseId);
-//		}
 		return new NodeInfo(nodeId, observationId, transducerIdMap);
 	}
 	
@@ -284,7 +242,8 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		Connection conn = connManager.getConnection();
 		
 		// まず, DBに存在しないか確認する
-		Collection<String> hashes = SOXUtil.extractLargeObjectHashes(largeObjects);
+		Collection<LargeObjectContainer> uniqueLargeObjects = SOXUtil.uniqueLargeObjects(largeObjects);
+		Collection<String> hashes = SOXUtil.extractLargeObjectHashes(uniqueLargeObjects);  // 重複を排除
 		String sqlCheck = "SELECT hash_key, id FROM large_object WHERE hash_key IN " + SQLUtil.buildPlaceholders(hashes.size()) + ";";
 		PreparedStatement psCheck = conn.prepareStatement(sqlCheck);
 		int idx = 1;
@@ -304,44 +263,26 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		psCheck.close();
 		
 		// 全部ある
-		if (loIdMap.size() == largeObjects.size()) {
+		if (loIdMap.size() == uniqueLargeObjects.size()) {
 			return Collections.unmodifiableMap(loIdMap);
 		}
 		
+		// ないものを追加する
 		PreparedStatement psInsert = conn.prepareStatement(LARGE_OBJECT_INSERT_SQL);
 		List<String> missedLargeObjectHashes = new ArrayList<>();
-		Set<String> goingToAddHashSet = new HashSet<>();
-		for (LargeObjectContainer loContainer : largeObjects) {
+		for (LargeObjectContainer loContainer : uniqueLargeObjects) {
 			String hash = loContainer.getHash();
-			if (!loIdMap.containsKey(hash) && !goingToAddHashSet.contains(hash)) {
+			if (!loIdMap.containsKey(hash)) {
 				fillLargeObjectValues(psInsert, loContainer);
 				psInsert.addBatch();
 				missedLargeObjectHashes.add(loContainer.getHash());
-				goingToAddHashSet.add(hash);
 			}
 		}
-		if (0 < missedLargeObjectHashes.size()) {
-			try { 
-				psInsert.executeBatch();
-			} catch (SQLException e) {
-				e.printStackTrace();
-				while ((e = e.getNextException()) != null) {
-					System.out.println("----------next");
-					e.printStackTrace();
-				}
-				
-//				throw e;
-			}
-			connManager.updateLastCommunicateTime();
-		}
+		psInsert.executeBatch();
+		connManager.updateLastCommunicateTime();
 		psInsert.close();
 		
-		if (missedLargeObjectHashes.isEmpty()) {
-			return Collections.unmodifiableMap(loIdMap);
-		}
-		
 		// 問い合わせなおす
-		System.out.println("missedLargeObjectHashes.size()=" + missedLargeObjectHashes.size());
 		sqlCheck = "SELECT hash_key, id FROM large_object WHERE hash_key IN " + SQLUtil.buildPlaceholders(missedLargeObjectHashes.size()) + ";";
 		psCheck = conn.prepareStatement(sqlCheck);
 		idx = 1;
@@ -386,8 +327,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			sqlArgContent = largeObjectContent;
 			isGzipped = false;
 		}
-		
-		System.out.println("fill-lo: content-length=" + contentLength);
 		
 		ps.setBoolean(1, isGzipped);
 		ps.setString(2, hexHash);
@@ -541,204 +480,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-//	private boolean insertTransducerRawValue(
-//			NodeInfo nodeInfo,
-//			long recordId, TransducerValue value,
-//			boolean hasSameTypedValue) throws SQLException, IOException, ParseException {
-//		Connection conn = connManager.getConnection();
-//		
-//		String[] fields = {
-//			"record_id",            // 1
-//			"has_same_typed_value", // 2
-//			"value_type",           // 3
-//			"transducer_id",        // 4
-//			"string_value",         // 5
-//			"int_value",            // 6
-//			"float_value",          // 7
-//			"decimal_value",        // 8
-//			"large_object_id",      // 9
-//			"transducer_timestamp"  // 10
-//		};
-//		
-//		final String tdrIdentity = value.getId();
-//		final NodeIdentifier nodeId = nodeInfo.getNodeId();
-////		final long observationId = nodeInfo.getObservationId();
-//		final long tdrRecordId = nodeInfo.getTransducerIdMap().get(tdrIdentity);
-//		
-//		String rawValue = value.getRawValue();
-//		
-//		int valType = SOXUtil.guessValueType(tdrIdentity, rawValue);
-//		
-////		long tdrRecordId = resolveTransducerDatabaseId(observationId, tdrIdentity, nodeId);
-//		
-//		String sql = SQLUtil.buildInsertSql(SR2Tables.TransducerRawValue, fields);
-//		PreparedStatement ps = conn.prepareStatement(sql);
-//		ps.setLong(1, recordId);
-//		ps.setBoolean(2, hasSameTypedValue);
-//		ps.setInt(3, valType);
-//		ps.setLong(4, tdrRecordId);
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_STRING) {
-//			ps.setString(5, rawValue);
-//		} else {
-//			ps.setNull(5, Types.VARCHAR);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_INT) {
-//			ps.setInt(6, Integer.parseInt(rawValue));
-//		} else {
-//			ps.setInt(6, 0);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_FLOAT || valType == SOXUtil.VALUE_TYPE_DECIMAL) {
-//			// float_value
-//			ps.setDouble(7, Double.parseDouble(rawValue));
-//		} else {
-//			ps.setDouble(7, 0.0);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_DECIMAL || valType == SOXUtil.VALUE_TYPE_FLOAT) {
-//			// decimal_value
-//			ps.setBigDecimal(8, new BigDecimal(rawValue));
-//		} else {
-//			ps.setBigDecimal(8, new BigDecimal("0.0"));
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_LARGE_OBJECT) {
-//			byte[] largeObject = null;
-//			largeObject = rawValue.getBytes("UTF-8");
-//			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
-//			ps.setLong(9, largeObjectId);
-//		} else {
-//			ps.setNull(9, Types.INTEGER);
-//		}
-//		
-//		Timestamp tdrTimestamp = SOXUtil.parseTransducerTimeStamp(value);
-//		ps.setTimestamp(10, tdrTimestamp);
-//		
-//		int affectedRows = ps.executeUpdate();
-//		connManager.updateLastCommunicateTime();
-//		boolean result;
-//		if (affectedRows != 1) {
-//			System.err.println("[DBW][w][4][raw][" + tdrIdentity + "] could not insert to transducer_raw_value");
-//			logger.error(SR2LogType.RAW_VALUE_INSERT_FAILED, "raw value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
-//			result = false;
-//		} else {
-//			logger.debug(SR2LogType.RAW_VALUE_INSERT, "raw value insert: " + value.getId(), nodeId.getServer(), nodeId.getNode());
-//			result = true;
-//		}
-//		
-//		ps.close();
-//		return result;
-//	}
-	
-//	private boolean insertTransducerTypedValue(
-//			long recordId, long transducerRecordId, TransducerValue value, NodeIdentifier nodeId) throws SQLException, IOException {
-//	private boolean insertTransducerTypedValue(
-//			NodeInfo nodeInfo, long recordId, TransducerValue value) throws SQLException, IOException {
-//		String[] fields = {
-//			"record_id",      // 1
-//			"value_type",     // 2
-//			"transducer_id",  // 3
-//			"string_value",   // 4
-//			"int_value",      // 5
-//			"float_value",    // 6
-//			"decimal_value",  // 7
-//			"large_object_id" // 8
-//		};
-//		
-//		final NodeIdentifier nodeId = nodeInfo.getNodeId();
-//		final String tdrIdentity = value.getId();
-//		final long transducerRecordId = nodeInfo.getTransducerIdMap().get(tdrIdentity);
-//		
-//		Connection conn = connManager.getConnection();
-//		String sql = SQLUtil.buildInsertSql(SR2Tables.TransducerTypedValue, fields);
-//		PreparedStatement ps = conn.prepareStatement(sql);
-//		
-//		ps.setLong(1, recordId);
-//
-//		String rawValue = value.getRawValue();
-//		
-//		int valType = SOXUtil.guessValueType(tdrIdentity, rawValue);
-//		
-//		ps.setInt(2, valType);
-//		
-//		ps.setLong(3, transducerRecordId);
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_STRING) {
-//			ps.setString(4, rawValue);
-//		} else {
-//			ps.setNull(4, Types.VARCHAR);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_INT) {
-//			ps.setInt(5, Integer.parseInt(rawValue));
-//		} else {
-//			ps.setInt(5, 0);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_FLOAT || valType == SOXUtil.VALUE_TYPE_DECIMAL) {
-//			ps.setDouble(6, Double.parseDouble(rawValue));
-//		} else {
-//			ps.setDouble(6, 0.0);
-//		}
-//		
-//		if (valType == SOXUtil.VALUE_TYPE_DECIMAL || valType == SOXUtil.VALUE_TYPE_FLOAT) {
-//			ps.setBigDecimal(7, new BigDecimal(rawValue));
-//		} else {
-//			ps.setBigDecimal(7, new BigDecimal("0.0"));
-//		}
-//
-//		if (valType == SOXUtil.VALUE_TYPE_LARGE_OBJECT) {
-//			byte[] largeObject = null;
-//			largeObject = rawValue.getBytes("UTF-8");
-//			long largeObjectId = findOrPutLargeObject(largeObject, nodeId, value.getId());
-//			ps.setLong(8, largeObjectId);
-//		} else {
-//			ps.setNull(8, Types.INTEGER);
-//		}
-//		
-//		int affectedRows = ps.executeUpdate();
-//		connManager.updateLastCommunicateTime();
-//		boolean result;
-//		if (affectedRows != 1) {
-//			System.err.println("[DBW][w][4][typed][" + tdrIdentity + "] could not insert to transducer_typed_value");
-//			logger.error(SR2LogType.TYPED_VALUE_INSERT_FAILED, "typed value insert failed: " + value.getId(), nodeId.getServer(), nodeId.getNode());
-//			result = false;
-//		} else {
-//			logger.debug(SR2LogType.TYPED_VALUE_INSERT, "typed value insert: " + value.getId(), nodeId.getServer(), nodeId.getNode());
-//			result = true;
-//		}
-//		ps.close();
-//		return result;
-//	}
-	
-	
-//	/**
-//	 * valueの形式からtypeを推測する。
-//	 * 場合によってはtransducerIdも推測に必要なので値としてとる。
-//	 * (transducerIdがlatやlngだったら緯度経度なので精度誤差を出さないためにVALUE_TYPE_DECIMALにするなど
-//	 * 
-//	 * @param transducerId
-//	 * @param value
-//	 * @return
-//	 */
-//	private int guessValueType(String transducerId, String value) {
-//		if (255 < value.length()) {
-//			return VALUE_TYPE_LARGE_OBJECT;
-//		} else if (PATTERN_INT.matcher(value).matches()) {
-//			return VALUE_TYPE_INT;
-//		} else if (PATTERN_FLOAT.matcher(value).matches()) {
-//			if (isDecimalName(transducerId)) {
-//				return VALUE_TYPE_DECIMAL;
-//			} else {
-//				return VALUE_TYPE_FLOAT;
-//			}
-//		} else {
-//			return VALUE_TYPE_STRING;
-//		}
-//	}
-	
 	/**
 	 * "record"テーブルにレコードをinsertする
 	 * @param recordTask
@@ -822,96 +563,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		
 		ps.close();
 	}
-	
-//	/**
-//	 * トランザクションの中だと仮定してよい
-//	 * @param largeObjectContent
-//	 * @return
-//	 * @throws SQLException 
-//	 * @throws IOException 
-//	 */
-//	private long findOrPutLargeObject(byte[] largeObjectContent, NodeIdentifier nodeId, String transducerId) throws SQLException, IOException {
-//		// 1. hash値を計算して、SQLでひいてみる
-//		String hexHash = HashUtil.sha256(largeObjectContent);
-//		
-//		// 2. 存在してればidをかえす OR 存在しなければSQLにつっこんでidをかえす
-//		Connection conn = connManager.getConnection();
-//		final String sql = "SELECT id FROM large_object WHERE hash_key = ?;";
-//		final PreparedStatement ps = conn.prepareStatement(sql);
-//		ps.setString(1, hexHash);
-////		System.out.println("[DBW][w][4][large_object] going to query large_object by hash=" + hexHash);
-//		ResultSet rs = ps.executeQuery();
-//		connManager.updateLastCommunicateTime();
-//		try {
-//			if (!rs.next()) {
-//				// ない => large_object レコードを作成
-////				System.out.println("[DBW][w][4][large_object] not found, going to create large_object, hash=" + hexHash);
-//				
-//				// gzipしてみる
-//				byte[] compressedContent = GzipUtil.compress(largeObjectContent);
-//				
-//				int contentLength = largeObjectContent.length;
-//				byte[] sqlArgContent;
-//				boolean isGzipped;
-//				if (largeObjectContent.length < compressedContent.length) {
-//					// gzipしたらおおきくなっちゃった: use orignal
-//					isGzipped = false;
-//					sqlArgContent = largeObjectContent;
-//				} else {
-//					isGzipped = true;
-//					sqlArgContent  = compressedContent;
-//				}
-//				
-//				// insert to PostgreSQL
-////				final String sqlPut = "INSERT INTO large_object(is_gzipped, hash_key, content, content_length) VALUES (?, ?, ?, ?);";
-//				String[] fields = {
-//					"is_gzipped",
-//					"hash_key",
-//					"content",
-//					"content_length"
-//				};
-//				final String sqlPut = SQLUtil.buildInsertSql(SR2Tables.LargeObject, fields);
-//				final PreparedStatement psPut = conn.prepareStatement(sqlPut);
-//				psPut.setBoolean(1, isGzipped);
-//				psPut.setString(2, hexHash);
-//				psPut.setBytes(3, sqlArgContent);;
-//				psPut.setLong(4, contentLength);
-//				int affectedRows = psPut.executeUpdate();
-//				connManager.updateLastCommunicateTime();
-//				if (affectedRows != 1) {
-//					// FIXME: なにかがおかしい...
-//					logger.error(SR2LogType.LARGE_OBJECT_CREATE_FAILED, "large object insert failed: " + transducerId, nodeId.getServer(), nodeId.getNode());
-//					System.err.println("[DBW][w][4][large_object] failed to insert large_object");
-//				} else {
-//					logger.debug(SR2LogType.LARGE_OBJECT_CREATE, "large object insert: " + transducerId, nodeId.getServer(), nodeId.getNode());
-//				}
-//				psPut.close();
-//				
-//				// DBに問い合わせ直してidをしらべる(sqlが再利用できる)
-//				final PreparedStatement psAgain = conn.prepareStatement(sql);
-//				psAgain.setString(1, hexHash);
-//				ResultSet rsAgain = psAgain.executeQuery();
-//				connManager.updateLastCommunicateTime();
-//				if (!rsAgain.next()) {
-//					// FIXME: なにかがおかしい
-//					System.err.println("[DBW][w][4][large_object] failed to fetch inserted large_object by hash=" + hexHash);
-//				}
-//				long addedLargeObjectId = rsAgain.getLong(1);
-//				
-//				rsAgain.close();
-//				psAgain.close();
-//				
-//				return addedLargeObjectId;
-//			} else {
-//				long foundLargeObjectId = rs.getLong(1);
-////				System.out.println("[DBW][w][4][large_object] found large_object for hash=" + hexHash + ", id=" + foundLargeObjectId);
-//				return foundLargeObjectId;
-//			}
-//		} finally {
-//			rs.close();
-//			ps.close();
-//		}
-//	}
 	
 	/**
 	 * トランザクションの中と仮定してよい
