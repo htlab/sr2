@@ -96,7 +96,6 @@ public class SR2PostgresLogWriter implements Runnable, RecorderSubProcess {
 	 * @throws SQLException
 	 */
 	private void writeLogItems(Collection<SR2LogItem> logItems) throws SQLException {
-		
 		List<SR2LogItem> noStacktraceLogItems = new ArrayList<>();
 		List<SR2LogItem> stacktraceLogItems = new ArrayList<>();
 		for (SR2LogItem logItem : logItems) {

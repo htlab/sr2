@@ -30,6 +30,23 @@ public class SQLUtil {
 		return sb.toString();
 	}
 	
+	/**
+	 * n=3だったら "(?,?,?)" みたいなプレースホルダのリストをつくる
+	 * @param n
+	 * @return
+	 */
+	public static String buildPlaceholders(int n) {
+		StringBuilder sb = new StringBuilder("(");
+		for (int i = 0; i < n; i++) {
+			if (0 < i) {
+				sb.append(',');
+			}
+			sb.append('?');
+		}
+		sb.append(')');
+		return sb.toString();
+	}
+	
 	public static Timestamp getCurrentTimestamp() {
 		Calendar calendar = Calendar.getInstance();
 		java.util.Date nowDate = calendar.getTime();
