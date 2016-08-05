@@ -63,7 +63,7 @@ def tunnel():
 
 @task
 def setup():
-    sudo('apt-get install -y python-dev autoconf g++')
+    sudo('apt-get install -y python-dev autoconf g++ libatlas-dev liblapack-dev libblas-dev gfortran')
 
     # install java
     # sudo('apt-get install -y openjdk-7-jre-headless')
@@ -180,6 +180,15 @@ def _setup_pg_schema():
 
 
 @task
+def setup_stat():
+    require.files.file(
+        '/etc/supervisor/conf.d/sr2-stat.conf',
+        source='./files/supervisor/etc/supervisor/conf.d/sr2-stat.conf',
+        owner='root', group='root', use_sudo=True
+    )
+
+
+@task
 def setup_supervisor():
     # NOTE: DID NOT CHECK IF IT WORKS !!!
     # NOTE: for debian-ish linux
@@ -266,6 +275,11 @@ def _deploy_java():
     )
 
     sudo('supervisorctl reload')
+    # sudo('supervisorctl restart sr2-recorder')
+
+
+@task
+def restart_java():
     sudo('supervisorctl restart sr2-recorder')
 
 
