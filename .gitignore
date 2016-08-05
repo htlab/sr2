@@ -18,3 +18,4 @@ java/build
 controller-config.json
 
 *.secret.ini
+*.secret.json
