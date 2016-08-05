@@ -223,3 +223,20 @@ CREATE TABLE blacklist(
 	memo varchar(255),
 	PRIMARY KEY (sox_server, sox_node)
 );
+
+CREATE TABLE sox_recorder_stat(
+	id bigserial,
+	total_record_count bigint,
+	total_observation_count bigint,
+	total_large_object_count bigint,
+	total_transducer_count bigint,
+	average_transducers_per_observation real,
+	total_export_count bigint,
+	total_disk_usage_kbytes bigint,
+	recent_1min_warn_log_count bigint,
+	recent_1min_error_log_count bigint,
+	recent_1min_record_count bigint,
+	created timestamp NOT NULL,
+	PRIMARY KEY (id)
+);
+CREATE INDEX sox_recorder_stat_created ON sox_recorder_stat (created);
