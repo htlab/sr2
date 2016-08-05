@@ -169,6 +169,7 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		Connection conn = connManager.getConnection();
 		Savepoint savePointBeforeWrite = conn.setSavepoint();
 		try {
+			// 1. observation idとtransducer idを解決する
 			NodeInfo nodeInfo = cache.get(nodeId, new Callable<NodeInfo>() {
 				@Override
 				public NodeInfo call() throws Exception {
@@ -182,7 +183,6 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 				cache.put(nodeId, nodeInfo);
 			}
 			
-			// 1. observationのidをSQLからひいてくる, みつからなかったらトランザクションROLLBACKして終了?
 			long observationId = nodeInfo.getObservationId();
 			
 			// 2. recordレコードを作成する。recordのidを取得
@@ -192,10 +192,14 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 			String rawXml = task.getRawXml();
 			insertRawXml(recordId, rawXml, nodeId);
 			
+			// 4. large_objectのidを解決する
 			Collection<LargeObjectContainer> largeObjects = SOXUtil.extractLargeObjects(tValues);
 			Map<String, Long> loInfo = resolveLargeObjects(largeObjects);
+			
+			// 5. raw valueを保存
 			insertRawValues(nodeInfo, recordId, tValues, loInfo);
 			
+			// 6. typed(rawと違うもの)があれば, 保存
 			Collection<TransducerValue> originalTypedValues = SOXUtil.extractTypedValueDifferentFromRaw(tValues);
 			if (0 < originalTypedValues.size()) {
 				insertTypedValues(nodeInfo, recordId, originalTypedValues, loInfo);
