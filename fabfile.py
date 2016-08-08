@@ -99,7 +99,25 @@ def setup():
     if not is_file(pg_flag_file):
         _setup_postgresql()
 
+    setup_stat()
+
+    setup_cron()
+
     deploy()
+
+
+@task
+def setup_cron():
+    require.files.file(
+        '/etc/cron.d/sr2-daily',
+        source='./files/sr2/etc/cron.d/sr2-daily',
+        owner='root', group='root', use_sudo=True
+    )
+    require.files.file(
+        '/etc/cron.d/sr2-monthly',
+        source='./files/sr2/etc/cron.d/sr2-monthly',
+        owner='root', group='root', use_sudo=True
+    )
 
 
 def _setup_java():
