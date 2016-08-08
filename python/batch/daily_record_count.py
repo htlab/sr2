@@ -113,7 +113,7 @@ def save_units(conn, daily_record_count_id, unit, unit1_counts):
     # print '    saved: unit=%d' % unit
 
 
-def save_daily_report(day, conn, obid, ob_data):
+def save_daily_report(day, conn, obid, ob_data, fh):
     # calculation
     # print 'save: %04d-%02d-%02d, obid=%d' % (day[0], day[1], day[2], obid)
     unit1_counts = [ ob_data.get(i, 0) for i in xrange(1440) ]
@@ -134,9 +134,14 @@ def save_daily_report(day, conn, obid, ob_data):
     # save unit values
     all_unit = (1, 5, 10, 30, 60, 360, 720)
     for unit in all_unit:
-        save_units(conn, drc_id, unit, unit1_counts)
+    #     save_units(conn, drc_id, unit, unit1_counts)
+        unit_n_counts = unit_numbers(unit, unit1_counts)
+        for i, count in enumerate(unit_n_counts):
+            # line = '\t'.join([ str(item) for item in [drc_id, unit, i, count]]) + '\n'
+            line = '%d\t%d\t%d\t%d\n' % (drc_id, unit, i, count)
+            fh.write(line)
     # print '    ok'
-    conn.commit()
+    # conn.commit()
 
 
 def log(msg):
@@ -150,6 +155,8 @@ def main(config_file):
         print 'missing config file: %s' % config_file
         sys.exit(-1)
 
+    log('@@@@@@@@@@ start')
+
     now = datetime.datetime.now()
     today = datetime.datetime(now.year, now.month, now.day, 0, 0, 0)
 
@@ -158,10 +165,9 @@ def main(config_file):
 
     conn = open_connection(config)
     with closing(conn):
-        saved = 0
         # create observation_id lists
         all_obids = fetch_observation_id_list(conn)
-        print 'all_obids=%d' % len(all_obids)
+        log('all_obids=%d' % len(all_obids))
 
         # determine start point
         start_day = determine_start_day(conn)
@@ -169,8 +175,13 @@ def main(config_file):
         dt_day = datetime.datetime(day[0], day[1], day[2], 0, 0, 0)
         while dt_day < today:
             log('%04d-%02d-%02d start' % (day[0], day[1], day[2]))
+            saved = 0
             t1 = time.time()
             sql = 'select observation_id, extract(hour from created) * 60 + extract(minute from created) as min_index, count(id) from record where created between %s and %s + interval \'1 day\' group by observation_id, min_index order by observation_id, min_index;'
+
+            tmp_f = '/tmp/sr2_drc_batch_%04d%02d%02d.tsv' % (day[0], day[1], day[2])
+            log('    tmp file: %s' % tmp_f)
+            fh = open(tmp_f, 'wb')
 
             cur = conn.cursor()
             reported_obids = set([])
@@ -183,7 +194,8 @@ def main(config_file):
                         current_obid = obid
                     else:
                         if current_obid != obid:
-                            save_daily_report(day, conn, current_obid, ob_data)
+                            # save_daily_report(day, conn, current_obid, ob_data)
+                            save_daily_report(day, conn, current_obid, ob_data, fh)
                             reported_obids.add(current_obid)
                             current_obid = obid
                             ob_data = dict()
@@ -193,22 +205,43 @@ def main(config_file):
                     ob_data[min_index] = count
 
                 if 0 < len(ob_data):
-                    save_daily_report(day, conn, current_obid, ob_data)
+                    # save_daily_report(day, conn, current_obid, ob_data)
+                    save_daily_report(day, conn, current_obid, ob_data, fh)
                     reported_obids.add(current_obid)
                     saved += 1
 
                 for obid in all_obids:
                     if obid not in reported_obids:
                         # not appeared: create report with all zero
-                        save_daily_report(day, conn, obid, dict())
+                        # save_daily_report(day, conn, obid, dict())
+                        save_daily_report(day, conn, obid, dict(), fh)
                         saved += 1
                         if saved % 1000 == 0:
                                 log('    %04d-%02d-%02d: %d, %.3fsec passed' % (day[0], day[1], day[2], saved, time.time() - t1))
                         # print '    @@@ saved not record this day: obid=%d' % obid
 
+            # use copy from
+            log('    start copy_from(), %.3fsec passed' % (time.time() - t1))
+            fh.close()
+            # fh = open(tmp_f, 'rb')
+            with open(tmp_f, 'rb') as fh:
+                cur = conn.cursor()
+                with closing(cur):
+                    cur.copy_from(
+                        fh,
+                        'daily_unit',
+                        sep='\t',
+                        size=1024 * 64,
+                        columns=['daily_record_count_id', 'unit', 'unit_seq', 'count']
+                    )
+                log('    end copy_from(), going to commit()')
+                conn.commit()
+            os.remove(tmp_f)
+            log('    removed tmp file: %s' % tmp_f)
+
             t2 = time.time()
-            print 'finisehd: %04d-%02d-%02d: %d observations, %.3fsec' % (
-                day[0], day[1], day[2], len(all_obids), t2 - t1)
+            log('    %04d-%02d-%02d: finished, %d observations, %.3fsec' % (
+                day[0], day[1], day[2], len(all_obids), t2 - t1))
 
             day = next_day(*day)
             dt_day = datetime.datetime(day[0], day[1], day[2], 0, 0, 0)
