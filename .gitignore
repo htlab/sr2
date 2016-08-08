@@ -19,3 +19,5 @@ controller-config.json
 
 *.secret.ini
 *.secret.json
+
+*.ipynb
