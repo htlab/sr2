@@ -1,0 +1,1 @@
+30 0 * * * root /usr/local/sr2/.venv/bin/python /usr/local/sr2/app/python/batch/daily_record_count.py -c /usr/local/sr2/app/stat.secret.json >> /var/log/sr2-cron-daily.log
