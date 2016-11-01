@@ -47,7 +47,7 @@ def cache_set(loid, value):
         return
 
     if len(_cache_loids) == _max_mem_loid:
-        remove_loid = _cache_loids.poplet()
+        remove_loid = _cache_loids.popleft()
         del _cache[remove_loid]
 
     _cache_loids.append(loid)
@@ -188,6 +188,8 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
     )
     """
 
+    meta_f = out_file + '.meta'
+
     # observation ID を確定する
     with closing(pg_conn.cursor()) as cursor:
         sql = 'SELECT id FROM observation WHERE sox_server = %s AND sox_node = %s;'
@@ -225,12 +227,20 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
         cursor.execute(sql, (ob_id,))
         (row_count,) = cursor.fetchone()
 
-    # print 'got total record count: N=%d' % row_count
+    # すでに全部exportずみかテストする
+    if os.path.exists(meta_f) and os.path.exists(out_file):
+        with open(meta_f, 'rb') as fh:
+            meta = json.load(fh)
+
+        if meta['row_count'] == row_count:
+            # すでにこの設定のデータはexportずみ
+            print '(JSON) %s => already exported' % sox_node
+            return (True, meta['columns'], row_count)
 
     # transducer_raw_value についてクエリする
     columns = dict()
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    chunks = 125
+    chunks = 20
     with closing(pool):
         with closing(pg_conn.cursor()) as cursor:
             sql = 'SELECT id, is_parse_error, created FROM record WHERE observation_id = %s ORDER BY created ASC;'
@@ -270,6 +280,17 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
                             # fh.write(line)
                             fh.write(rec_jsonline)
                             bar.update(1)
+
+    meta = dict(
+        sox_server=sox_server,
+        sox_node=sox_node,
+        columns=columns,
+        row_count=row_count
+    )
+
+    with open(meta_f, 'wb') as fh:
+        fh.write(json.dumps(meta))
+
     return (True, columns, row_count)
 
 
