@@ -261,7 +261,7 @@ def export_json(pg_conn, sox_server, sox_node, out_file, from_time, until_time):
             meta_ut = meta.get('until_time', 'old_version')
 
         if meta_ft != 'old_version':
-            is_same_time = (meta_ft == str_dt(from_time)) and (meta_ut == str_dt(until_time))
+            is_same_time = (parse_dt(meta_ft) == from_time) and (parse_dt(meta_ut) == until_time)
             if meta['row_count'] == row_count and is_same_time:
                 # すでにこの設定のデータはexportずみ
                 print '  (JSON) %s => found already exported file, rows=%d' % (sox_node, row_count)
