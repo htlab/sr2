@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 簡易的なエクスポートの実装
+import re
 import sys
 import getpass
 import datetime
@@ -32,6 +33,21 @@ _max_mem_loid = 5000
 
 _encoding = None
 _columns = None
+
+pat_dt = re.compile(r'\A(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\Z')
+
+
+def parse_dt(dt):
+    if dt is None:
+        return None
+    m = pat_dt.match(dt)
+    if not m:
+        return None
+    return datetime.datetime(*[ int(n) for n in m.groups() ])
+
+
+def str_dt(dt):
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def cache_get(loid):
@@ -178,7 +194,7 @@ def make_json_line(dict_data):
     return json.dumps(dict_data) + '\n'
 
 
-def export_json(pg_conn, sox_server, sox_node, out_file):
+def export_json(pg_conn, sox_server, sox_node, out_file, from_time, until_time):
     """
     return value is 3 value tuple
     (
@@ -223,19 +239,33 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
 
     # clickにETAや進捗を出させたいのでヒット数を数える
     with closing(pg_conn.cursor()) as cursor:
-        sql = 'SELECT COUNT(*) FROM record WHERE observation_id = %s;'
-        cursor.execute(sql, (ob_id,))
+        conditions = ['(observation_id = %s)']
+        args = [ob_id]
+        if from_time:
+            conditions.append('(%s <= created)')
+            args.append(from_time)
+        if until_time:
+            conditions.append('(created < %s)')
+            args.append(until_time)
+        cond = ' AND '.join(conditions)
+        sql = 'SELECT COUNT(*) FROM record WHERE %s;' % cond
+        # cursor.execute(sql, (ob_id,))
+        cursor.execute(sql, args)
         (row_count,) = cursor.fetchone()
 
     # すでに全部exportずみかテストする
     if os.path.exists(meta_f) and os.path.exists(out_file):
         with open(meta_f, 'rb') as fh:
             meta = json.load(fh)
+            meta_ft = meta.get('from_time', 'old_version')
+            meta_ut = meta.get('until_time', 'old_version')
 
-        if meta['row_count'] == row_count:
-            # すでにこの設定のデータはexportずみ
-            print '(JSON) %s => already exported' % sox_node
-            return (True, meta['columns'], row_count)
+        if meta_ft != 'old_version':
+            is_same_time = (meta_ft == str_dt(from_time)) and (meta_ut == str_dt(until_time))
+            if meta['row_count'] == row_count and is_same_time:
+                # すでにこの設定のデータはexportずみ
+                print '  (JSON) %s => found already exported file, rows=%d' % (sox_node, row_count)
+                return (True, meta['columns'], row_count)
 
     # transducer_raw_value についてクエリする
     columns = dict()
@@ -243,12 +273,33 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
     chunks = 20
     with closing(pool):
         with closing(pg_conn.cursor()) as cursor:
-            sql = 'SELECT id, is_parse_error, created FROM record WHERE observation_id = %s ORDER BY created ASC;'
-            cursor.execute(sql, (ob_id,))
+            conditions = ['(observation_id = %s)']
+            args = [ob_id]
+
+            if from_time:
+                conditions.append('(%s <= created)')
+                args.append(from_time)
+
+            if until_time:
+                conditions.append('(created < %s)')
+                args.append(until_time)
+
+            cond = ' AND '.join(conditions)
+            sql = '''
+            SELECT
+                id, is_parse_error, created
+            FROM
+                record
+            WHERE
+                %s
+            ORDER BY
+                created ASC;
+            ''' % cond
+            cursor.execute(sql, tuple(args))
             record = None
             with open(out_file, 'wb') as fh:
                 with click.progressbar(
-                        length=row_count, label='(JSON) %s' % sox_node,
+                        length=row_count, label='  (JSON) %s' % sox_node,
                         show_eta=True, show_percent=True, show_pos=True) as bar:
 
                     recbuf = []
@@ -263,10 +314,7 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
                         if n_flush <= len(recbuf):
                             fill_recbuf(pg_conn, tid2tname, recbuf, columns)
 
-                            # for rec in recbuf:
                             for rec_jsonline in pool.imap(make_json_line, recbuf, chunksize=chunks):
-                                # line = json.dumps(rec) + '\n'
-                                # fh.write(line)
                                 fh.write(rec_jsonline)
                                 bar.update(1)
 
@@ -274,10 +322,7 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
 
                     if 0 < len(recbuf):
                         fill_recbuf(pg_conn, tid2tname, recbuf, columns)
-                        # for rec in recbuf:
                         for rec_jsonline in pool.imap(make_json_line, recbuf, chunksize=chunks):
-                            # line = json.dumps(rec) + '\n'
-                            # fh.write(line)
                             fh.write(rec_jsonline)
                             bar.update(1)
 
@@ -285,7 +330,9 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
         sox_server=sox_server,
         sox_node=sox_node,
         columns=columns,
-        row_count=row_count
+        row_count=row_count,
+        from_time=(str_dt(from_time) if from_time else None),
+        until_time=(str_dt(until_time) if until_time else None)
     )
 
     with open(meta_f, 'wb') as fh:
@@ -296,15 +343,9 @@ def export_json(pg_conn, sox_server, sox_node, out_file):
 
 def conv_json_line(line):
     global _columns, _encoding
-    try:
-        line_data = json.loads(line)
-        values = [ line_data.get(col, None) for col in _columns ]
-        return make_csv_line(values, encoding=_encoding)  # FIXME encoding
-    except:
-        print '\n\n\n@@@@@@@@@@@@@@@@@@'
-        traceback.print_exc()
-        print '@@@@@@@@@@@@@@@@@@\n\n\n'
-        raise
+    line_data = json.loads(line)
+    values = [ line_data.get(col, None) for col in _columns ]
+    return make_csv_line(values, encoding=_encoding)
 
 
 def convert_json2csv(
@@ -312,6 +353,17 @@ def convert_json2csv(
         drop_large=True, n_lines=None, enc='cp932'):
 
     global _pool, _columns, _encoding
+
+    csv_meta_f = out_file + '.meta'
+    json_meta_f = json_lines_file + '.meta'
+    if os.path.exists(csv_meta_f) and os.path.exists(out_file):
+        with open(csv_meta_f, 'rb') as fh, open(json_meta_f, 'rb') as jfh:
+            csv_meta = json.load(fh)
+            json_meta = json.load(jfh)
+
+        if csv_meta == json_meta:
+            print '  (CSV)  %s => found already exported csv!' % node
+            return  # already exported!
 
     _encoding = enc
 
@@ -328,7 +380,7 @@ def convert_json2csv(
             out_fh.write(make_csv_line(columns, encoding=enc))
             with click.progressbar(
                     length=n_lines,
-                    label='(CSV) %s' % node,
+                    label='  (CSV)  %s' % node,
                     show_eta=True,
                     show_pos=True, show_percent=True) as bar:
                 # for line in in_fh:
@@ -339,6 +391,9 @@ def convert_json2csv(
                 for csv_line in pool.imap(conv_json_line, in_fh, chunksize=20):
                     out_fh.write(csv_line)
                     bar.update(1)
+
+    with open(csv_meta_f, 'wb') as fh, open(json_meta_f, 'rb') as jfh:
+        fh.write(jfh.read())
 
 
 def escape_csv_value(v, encoding):
@@ -382,9 +437,11 @@ def get_nodes(f):
 @click.option('-c', '--no-csv', type=bool, default=False, help='no csv file generation (default: False)')
 @click.option('-l', '--no-large-in-csv', type=bool, default=True, help='no large object in csv (default: True)')
 @click.option('-y', '--no-confirm', type=bool, default=False, help='no confirmation (default: False)')
+@click.option('-f', '--from-time', default='', help='from time(optional) (format: "2016-10-01 12:34:56")')
+@click.option('-u', '--until-time', default='', help='until time(optional) (format: "2016-10-10 00:00:00")')
 def main(
         host, db, user, sox_server, node_list_file, out_dir,
-        no_csv, no_large_in_csv, no_confirm):
+        no_csv, no_large_in_csv, no_confirm, from_time, until_time):
     if not node_list_file:
         print 'ERROR: parameter -n/--node-list-file not specified'
         sys.exit(-1)
@@ -399,6 +456,11 @@ def main(
         print 'ERROR: out-dir \'%s\' not existing' % out_dir
         sys.exit(-1)
 
+    from_time = parse_dt(from_time)
+    until_time = parse_dt(until_time)
+
+    print 'Time-from: %s' % ('Beginning' if from_time is None else from_time.strftime('%Y-%m-%d %H:%M:%S'))
+    print 'Time-until: %s' % ('Latest' if until_time is None else until_time.strftime('%Y-%m-%d %H:%M:%S'))
     print 'Output dir: %s' % out_dir
 
     print 'SOX Server: %s' % sox_server
@@ -437,7 +499,7 @@ def main(
             basename = u'%s.json' % safenode
             json_out_f = os.path.join(out_dir, basename)
             t1 = time.time()
-            found, columns, rows = export_json(pg_conn, sox_server, node, json_out_f)
+            found, columns, rows = export_json(pg_conn, sox_server, node, json_out_f, from_time, until_time)
             t2 = time.time()
             db_exports.append(t2 - t1)
             rows_samples.append(rows)
