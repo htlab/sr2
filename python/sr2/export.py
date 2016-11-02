@@ -537,6 +537,21 @@ def main(
         for i, (sox_server, node) in enumerate(not_found):
             print '    %5d server=%s, node=%s' % (sox_server, node)
 
+    meta = dict(
+        time_start=str_dt(dt_start),
+        time_finish=str_dt(dt_finish),
+        time_passed_sec=sec_passed,
+        sox_server=sox_server,
+        n_nodes=len(nodes),
+        node_list_file=node_list_file,
+        nodes=nodes,
+        out_dir=out_dir,
+        postgres=dict(host=host, db=db, user=user)
+    )
+    meta_f = os.path.join(out_dir, '_meta.json')
+    with open(meta_f, 'wb') as fh:
+        json.dump(meta, fh, indent=4, sort_keys=True)
+
 
 if __name__ == '__main__':
     main()
