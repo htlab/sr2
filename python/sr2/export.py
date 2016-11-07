@@ -372,12 +372,14 @@ def convert_json2csv(
     else:
         columns = [ col for col, using_lo in columns.items() ]
 
-    _columns = columns
+    _columns = ['id', 'created', 'is_parse_error']
+    _columns.extend(columns)
+    # _columns = columns
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     with closing(pool):
         with open(json_lines_file, 'rb') as in_fh, open(out_file, 'wb') as out_fh:
-            out_fh.write(make_csv_line(columns, encoding=enc))
+            out_fh.write(make_csv_line(_columns, encoding=enc))
             with click.progressbar(
                     length=n_lines,
                     label='  (CSV)  %s' % node,
