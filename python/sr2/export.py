@@ -460,9 +460,15 @@ def main(
     if not out_dir:
         print 'ERROR: parameter -o/--out-dir not specified'
         sys.exit(-1)
-    elif not os.path.exists(out_dir):
-        print 'ERROR: out-dir \'%s\' not existing' % out_dir
-        sys.exit(-1)
+
+    if not os.path.exists(out_dir):
+        try:
+            os.makedirs(out_dir)
+        except:
+            print 'ERROR: could not create out_dir: %s' % out_dir
+            sys.exit(-1)
+        else:
+            print 'created out_dir: %s' % out_dir
 
     from_time = parse_dt(from_time)
     until_time = parse_dt(until_time)
@@ -495,8 +501,9 @@ def main(
     dt_start = datetime.datetime.now()
     db_exports = []
     db_csv_conv = []
-    rows_samples = []
     not_found = []
+    # empty_nodes = []
+    node_rows = []
 
     pg_conn = psycopg2.connect(host=host, database=db, user=user, password=pw)
     print 'Connected to PostgreSQL(host=%s)' % host
@@ -510,7 +517,7 @@ def main(
             found, columns, rows = export_json(pg_conn, sox_server, node, json_out_f, from_time, until_time)
             t2 = time.time()
             db_exports.append(t2 - t1)
-            rows_samples.append(rows)
+            node_rows.append([node, rows])
 
             if not found:
                 not_found.append( (sox_server, sox_node) )
@@ -533,7 +540,9 @@ def main(
     print 'Time passed: %.3fsec' % sec_passed
     if 0 < len(nodes):
         avg_export = sum(db_exports) / len(nodes)
-        avg_rows = sum(rows_samples) / len(nodes)
+        rows_counts = [ rows for node, rows in node_rows ]
+        avg_rows = sum(rows_counts) / len(nodes)
+
         print 'Average exported rows: %.3f' % avg_rows
         print 'Average JSON lines export time: %.3fsec' % avg_export
         if not no_csv:
@@ -544,6 +553,13 @@ def main(
         print 'WARNING: %d observations not found:' % len(not_found)
         for i, (sox_server, node) in enumerate(not_found):
             print '    %5d server=%s, node=%s' % (sox_server, node)
+
+    node_rows_file = os.path.join(out_dir, 'node_rows.csv')
+    with open(node_rows_file, 'wb') as fh:
+        fh.write(make_csv_line(['node', 'records'], 'cp932'))
+        for node, rows in sorted(node_rows, key=lambda x: x[1]):
+            line = make_csv_line([node, rows], 'cp932')
+            fh.write(line)
 
     meta = dict(
         time_start=str_dt(dt_start),
