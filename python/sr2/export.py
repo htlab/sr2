@@ -420,12 +420,18 @@ def make_csv_line(values, encoding):
 
 def get_nodes(f):
     ret = []
+    added = set([])
     with open(f, 'rb') as fh:
         for line in fh:
             line = line.replace('\n', '').decode('utf-8')
             if line == '':
                 continue
+
+            if line in added:
+                continue
+
             ret.append(line)
+            added.add(line)
     return ret
 
 
