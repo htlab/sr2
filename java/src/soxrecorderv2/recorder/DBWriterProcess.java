@@ -221,16 +221,8 @@ public class DBWriterProcess implements Runnable, RecorderSubProcess {
 		}
 	}
 	
-	private NodeInfo resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) {
-		NodeInfo ret = null;
-		while (ret == null ) {
-			try {
-				ret = _resolveNodeInfo(nodeId, tValues);
-			} catch (SQLException e) {
-				logger.error(SR2LogType.JAVA_SQL_EXCEPTION, "SQL exception during resolveNodeInfo", e);
-			}
-		}
-		return ret;
+	private NodeInfo resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {
+		return _resolveNodeInfo(nodeId, tValues);
 	}
 	
 	private NodeInfo _resolveNodeInfo(NodeIdentifier nodeId, Collection<TransducerValue> tValues) throws SQLException {

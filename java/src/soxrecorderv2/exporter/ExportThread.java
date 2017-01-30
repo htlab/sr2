@@ -5,22 +5,24 @@ import java.util.concurrent.TimeUnit;
 
 import soxrecorderv2.common.model.ExportTask;
 import soxrecorderv2.common.model.ExportingState;
+import soxrecorderv2.util.PGConnectionManager;
 
 public class ExportThread implements Runnable {
 	
 	public static final long QUEUE_POLL_TIMEOUT_MSEC = 100;
 	
-	private final Exporter system;
+	private final Exporter parent;
 	private final LinkedBlockingQueue<ExportTask> taskQueue;
 	private volatile boolean isRunning = false;
+	private ExportTaskExecutor executor;
 	
 	public ExportThread(Exporter system) {
-		this.system = system;
+		this.parent = system;
 		this.taskQueue = system.getTaskQueue();
 	}
 	
-	public Exporter getSystem() {
-		return system;
+	public Exporter getExporter() {
+		return parent;
 	}
 	
 	public LinkedBlockingQueue<ExportTask> getTaskQueue() {
@@ -45,30 +47,33 @@ public class ExportThread implements Runnable {
 			task.setState(ExportingState.STARTED);
 			ExportingState resultState = doExport(task);
 			task.setState(resultState);
-			
-			long exportId = task.getExportProfile().getId();
-			boolean updateFinished = false;
-			while (!updateFinished) {
-				try {
-					// update controller's export profile state.
-					system.getClient().updateExportState(exportId, resultState);
-					
-					updateFinished = true;
-				} catch (Exception e) {
-					// TODO: logging
-				}
-			}
+			updateStateOnDatabase(task);
 		}
 	}
 	
 	public void stopExportThread() {
 		isRunning = false;
+		if (executor != null) {
+			executor.stopExporting();
+		}
 	}
 	
 	public ExportingState doExport(final ExportTask task) {
-		// TODO: implement actual exporting process
-		return ExportingState.FINISHED;
+		try {
+			executor = new ExportTaskExecutor(parent, task);
+			executor.run();
+			return ExportingState.FINISHED;
+		} catch (Exception e) {
+			return ExportingState.ERROR;
+		}
 	}
 	
+	public void updateStateOnDatabase(ExportTask task) {
+		// TODO
+	}
+	
+	public PGConnectionManager getConnManager() {
+		return parent.getConnManager();
+	}
 
 }

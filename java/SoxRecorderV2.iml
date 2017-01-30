@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="EclipseModuleManager">
+    <libelement value="jar://$MODULE_DIR$/lib/simple/simple-xml-2.7.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/simple/stax-1.2.0.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/simple/stax-api-1.0.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/httpclient-4.2.3.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/jxmpp-core-0.4.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/jxmpp-util-cache-0.5.0-alpha2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/minidns-0.1.3.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-android-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-android-extensions-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-bosh-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-compression-jzlib-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-core-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-debug-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-debug-slf4j-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-experimental-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-extensions-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-im-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-java7-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-jingle-old-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-legacy-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-resolver-dnsjava-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-resolver-javax-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-resolver-minidns-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-sasl-javax-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-sasl-provided-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/smack/smack-tcp-4.1.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/JSoxLib.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/jsonic-1.3.10.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/commons-codec-1.9.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/commons-logging-1.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/fluent-hc-4.5.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-4.5.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-cache-4.5.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-win-4.5.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/httpcore-4.4.4.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/httpmime-4.5.2.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/jna-4.1.0.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/httpcomponent-client/jna-platform-4.1.0.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/postgresql/postgresql-9.4.1208.jre6.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/dom4j-1.6.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/xpp3-1.1.6.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/jaxen-full.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/saxpath.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/jedis-2.8.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/commons/commons-io-2.5.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/commons/commons-collections4-4.1.jar!/" />
+    <libelement value="jar://$MODULE_DIR$/lib/guava-19.0.jar!/" />
+    <src_description expected_position="0">
+      <src_folder value="file://$MODULE_DIR$/src" expected_position="0" />
+    </src_description>
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="false">
+    <output url="file://$MODULE_DIR$/bin" />
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+    </content>
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="module-library">
+      <library name="simple-xml-2.7.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/simple/simple-xml-2.7.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="stax-1.2.0.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/simple/stax-1.2.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="stax-api-1.0.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/simple/stax-api-1.0.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpclient-4.2.3.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/httpclient-4.2.3.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jxmpp-core-0.4.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/jxmpp-core-0.4.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jxmpp-util-cache-0.5.0-alpha2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/jxmpp-util-cache-0.5.0-alpha2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="minidns-0.1.3.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/minidns-0.1.3.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-android-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-android-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-android-extensions-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-android-extensions-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-bosh-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-bosh-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-compression-jzlib-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-compression-jzlib-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-core-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-core-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-debug-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-debug-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-debug-slf4j-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-debug-slf4j-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-experimental-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-experimental-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-extensions-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-extensions-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-im-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-im-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-java7-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-java7-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-jingle-old-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-jingle-old-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-legacy-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-legacy-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-resolver-dnsjava-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-resolver-dnsjava-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-resolver-javax-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-resolver-javax-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-resolver-minidns-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-resolver-minidns-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-sasl-javax-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-sasl-javax-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-sasl-provided-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-sasl-provided-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="smack-tcp-4.1.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/smack/smack-tcp-4.1.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="JSoxLib.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/JSoxLib.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jsonic-1.3.10.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/jsonic-1.3.10.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="commons-codec-1.9.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/commons-codec-1.9.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="commons-logging-1.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/commons-logging-1.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="fluent-hc-4.5.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/fluent-hc-4.5.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpclient-4.5.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-4.5.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpclient-cache-4.5.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-cache-4.5.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpclient-win-4.5.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/httpclient-win-4.5.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpcore-4.4.4.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/httpcore-4.4.4.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="httpmime-4.5.2.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/httpmime-4.5.2.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jna-4.1.0.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/jna-4.1.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jna-platform-4.1.0.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/httpcomponent-client/jna-platform-4.1.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="postgresql-9.4.1208.jre6.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/postgresql/postgresql-9.4.1208.jre6.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="dom4j-1.6.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/dom4j-1.6.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="xpp3-1.1.6.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/xpp3-1.1.6.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jaxen-full.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/jaxen-full.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="saxpath.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/saxpath.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="jedis-2.8.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/jedis-2.8.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="commons-io-2.5.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/commons/commons-io-2.5.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="commons-collections4-4.1.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/commons/commons-collections4-4.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="guava-19.0.jar">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/guava-19.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+  </component>
+</module>

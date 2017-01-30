@@ -2,6 +2,7 @@ package soxrecorderv2.common.model;
 
 public enum ExportingState {
 	
+	NONE(0),
 	INITIATED(1),
 	IN_QUEUE(2),
 	STARTED(3),

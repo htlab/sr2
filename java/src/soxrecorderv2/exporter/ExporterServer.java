@@ -61,6 +61,7 @@ public class ExporterServer implements Runnable {
 					
 					system.enqueueExportTask(exportId);
 				}
+				// TODO: start 以外のコマンドを実装する, 進捗を確認するコマンド
 			}
 			
 			IOUtils.closeQuietly(client);
