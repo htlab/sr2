@@ -1,0 +1,17 @@
+{% extends "_layout.html.j2" %}
+{% block header %}
+  <!-- header comment -->
+{% endblock %}
+{% block content %}
+  <h1>Delete user: {{ del_user.login }}</h1>
+  [<a href="/admin/users/">Back</a>][<a href="/logout">Logout</a>]
+
+  {% if err_msg %}
+      <p>{{err_msg}}</p>
+  {% endif %}
+
+  <form action="/admin/users/delete/{{del_user.id}}" method="POST">
+    <input type="checkbox" name="confirm" value="yes"> I am sure to delete user "{{del_user.login}}" <br>
+    <input type="submit" value="Delete &quot;{{del_user.login}}&quot;">
+  </form>
+{% endblock %}

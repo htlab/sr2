@@ -1,0 +1,22 @@
+{% extends "_layout.html.j2" %}
+{% block header %}
+  <!-- header comment -->
+{% endblock %}
+{% block content %}
+  <h1>SOX Recorder</h1>
+  <p>content test, hello {{ user.login }}!</p>
+
+  [<a href="/logout">Logout</a>]
+
+  {% if user.is_admin() %}
+    <h2>Admin Menu</h2>
+    <ul>
+      <li><a href="/admin/users/">user maangement</a></li>
+    </ul>
+  {% endif %}
+
+  <h2>Menu</h2>
+  <ul>
+    <li><a href="/apikeys/">API Key management</li>
+  </ul>
+{% endblock %}

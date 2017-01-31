@@ -1,0 +1,54 @@
+{% extends "_layout.html.j2" %}
+{% block header %}
+  <!-- header comment -->
+{% endblock %}
+{% block content %}
+  <h1>API Keys</h1>
+  [<a href="/">Back</a>][<a href="/logout">Logout</a>]
+
+  <form action="/apikeys/new" method="POST">
+    <input type="submit" value="Issue new API key">
+  </form>
+
+  <form action="/apikeys/update" method="POST">
+    <table border="1">
+      <tr>
+        <th>&nbsp;</th>
+        <th>Status</th>
+        <th>API Key</th>
+        <th>Created At</th>
+        <th>Operation</th>
+      </tr>
+
+      {% for k in api_keys %}
+        <tr>
+          <td>
+            <input type="checkbox" name="apikey_ids" value="{{k.api_key}}">
+          </td>
+          <td>
+            {% if k.is_enabled %}
+              Enabled
+            {% else %}
+              Disabled
+            {% endif %}
+          </td>
+
+          <td>{{k.api_key}}</td>
+          <td>{{k.created}}</td>
+          <td>
+            <a href="/apikeys/delete/{{ k.id }}">Delete</a>
+          </td>
+        </tr>
+      {% endfor %}
+
+      {% if not api_keys %}
+        <tr>
+          <td colspan="5">No API Keys yet...</td>
+        </tr>
+      {% endif %}
+
+    </table>
+
+    <input type="submit" name="op" value="Enable"> / <input type="submit" name="op" value="Disable">
+  </form>
+{% endblock %}

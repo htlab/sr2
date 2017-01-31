@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import hashlib
 import datetime
+import os
 
 from peewee import (
     SQL,
@@ -18,10 +19,17 @@ from peewee import (
     DateTimeField,
     BlobField,
     FloatField,
-    DoubleField
+    DoubleField,
+    ForeignKeyField
 )
 
 from sr2.util import gen_random_string
+
+USER_LEVEL_NORMAL = 0
+USER_LEVEL_ADMIN = 10
+
+LIST_TYPE_WHITE = 'white'
+LIST_TYPE_BLACK = 'black'
 
 
 database_proxy = Proxy()
@@ -35,7 +43,7 @@ def connect(host, port, user, pw, db):
         host=host,
         port=port
     )
-    dataase_proxy.initialize(pgdb)
+    database_proxy.initialize(pgdb)
 
 
 class BaseModel(Model):
@@ -46,9 +54,14 @@ class BaseModel(Model):
 class User(BaseModel):
     id = PrimaryKeyField(null=False, primary_key=True)
     login = CharField(null=False, unique=True)
+    level = IntegerField(
+        null=False,
+        choices=(USER_LEVEL_NORMAL, USER_LEVEL_NORMAL),
+        default=USER_LEVEL_NORMAL
+    )
     hash_pw = CharField(null=False)
     hash_seed = CharField(null=False)
-    created = DateTimeField(null=False)
+    created = DateTimeField(null=False, default=datetime.datetime.now)
 
     def assign_password(self, raw_pw):
         seed = gen_random_string(255)
@@ -57,26 +70,90 @@ class User(BaseModel):
         self.hash_seed = seed
 
     def auth(self, raw_pw):
+        print 'correct  =' + self.hash_pw
+        print 'generated=' + self._gen_hash(self.hash_seed, raw_pw)
+        print 'generated=' + self._gen_hash(self.hash_seed, raw_pw)
         return (self.hash_pw == self._gen_hash(self.hash_seed, raw_pw))
 
     def _gen_hash(self, seed, raw_pw):
         strech_times = 100
         hashed = seed + raw_pw
         for _ in xrange(strech_times):
-            hashed = hasahlib.sha256(hashed).hexdigest()
+            hashed = hashlib.sha256(hashed).hexdigest()
         return hashed
+
+    def is_admin(self):
+        return self.level == USER_LEVEL_ADMIN
 
 
 class ApiKey(BaseModel):
-    user_id = BigIntegerField(null=False)
+    # user_id = BigIntegerField(null=False)
+    user = ForeignKeyField(User, db_column='user_id', related_name='api_keys')
     is_enabled = BooleanField(null=False)
     api_key = CharField(null=False, primary_key=True)
-    created = DateTimeField(null=False)
+    created = DateTimeField(null=False, default=datetime.datetime.now)
+
+    def assign_random_key(self):
+        self.api_key = hashlib.md5(os.urandom(100)).hexdigest()
+
+    class Meta:
+        database = database_proxy
+        db_table = 'api_key'
+        constraints = (
+            SQL('FOREIGN KEY (user_id) REFERENCES "user" (id)'),
+        )
+
+
+class NodeList(BaseModel):
+    id = PrimaryKeyField(null=False, primary_key=True)
+    name = CharField(null=False, unique=True)
+    created = DateTimeField(null=False, default=datetime.datetime.now)
+    means_all = BooleanField(null=False, default=False)
+
+    class Meta:
+        database = database_proxy
+        indexes = (
+            (('name',), True)
+        )
+
+
+class NodeListMember(BaseModel):
+    id = PrimaryKeyField(null=False, primary_key=True)
+    node_list_id = BigIntegerField(null=False)
+    observation_id = BigIntegerField(null=False)
+    created = DateTimeField(null=False, default=datetime.datetime.now)
 
     class Meta:
         database = database_proxy
         constraints = (
-            SQL('FOREIGN KEY (user_id) REFERENCES user (id)'),
+            SQL('FOREIGN KEY (node_list_id) REFERENCES node_list (id)'),
+            SQL('FOREIGN KEY (observation_id) REFERENCES observation (id)'),
+        )
+        indexes = (
+            (('node_list_id',), False)
+        )
+
+
+class UserAccessCtrl(BaseModel):
+    id = PrimaryKeyField(null=False, primary_key=True)
+    name = CharField(null=False, unique=True)
+    user_id = BigIntegerField(null=False)
+    node_list_id = BigIntegerField(null=False)
+    list_type = CharField(
+        null=False,
+        choices=(LIST_TYPE_WHITE, LIST_TYPE_BLACK)
+    )
+    created = DateTimeField(null=False, default=datetime.datetime.now)
+
+    class Meta:
+        database = database_proxy
+        constraints = (
+            SQL('FOREIGN KEY (user_id) REFERENCES "user" (id)'),
+            SQL('FOREIGN KEY (node_list_id) REFERENCES node_list (id)'),
+        )
+        indexes = (
+            (('name',), False),
+            (('user_id',), False)
         )
 
 

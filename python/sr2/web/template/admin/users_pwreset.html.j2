@@ -1,0 +1,18 @@
+{% extends "_layout.html.j2" %}
+{% block header %}
+  <!-- header comment -->
+{% endblock %}
+{% block content %}
+  <h1>Reset password: {{pw_user.login}}</h1>
+  [<a href="/admin/users/">Back</a>][<a href="/logout">Logout</a>]
+
+  {% if err_msg %}
+      <li>{{err_msg}}</li>
+  {% endif %}
+
+  <form action="/admin/users/pwreset/{{pw_user.id}}" method="POST">
+    New Password=<input type="password" name="pw" size="30"><br>
+    New Password(confirm)=<input type="password" name="pw2" size="30"><br>
+    <input type="submit" value="Reset Password">
+  </form>
+{% endblock %}

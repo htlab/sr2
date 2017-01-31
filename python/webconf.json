@@ -1,0 +1,13 @@
+{
+    "bind_addr": "127.0.0.1",
+    "template_dir": "./sr2/web/template",
+    "static_dir": "./sr2/web/static",
+    "template_cache": false,
+    "postgresql": {
+        "host": "sox-recorder.ht.sfc.keio.ac.jp",
+        "port": 5432,
+        "user": "sr2",
+        "pw": "sr2miro",
+        "db": "sr2"
+    }
+}

@@ -1,0 +1,45 @@
+{% extends "_layout.html.j2" %}
+{% block header %}
+  <!-- header comment -->
+{% endblock %}
+{% block content %}
+  <h1>Users</h1>
+  [<a href="/">Back</a>][<a href="/logout">Logout</a>]
+
+  <ul>
+    <li><a href="/admin/users/new">Add new user</a></li>
+  </ul>
+
+  <table border="1">
+    <tr>
+      <th>Type</th>
+      <th>Login</th>
+      <th>Created At</th>
+      <th>Operation</th>
+    </tr>
+
+    {% for u in users %}
+      <tr>
+        <td>
+          {% if u.is_admin() %}
+            Admin
+          {% else %}
+            Normal
+          {% endif %}
+        </td>
+
+        <td>{{u.login}}</td>
+        <td>{{u.created}}</td>
+        <td>
+          {% if u.login == user.login %}
+            Delete
+          {% else %}
+            <a href="/admin/users/delete/{{ u.id }}">Delete</a>
+          {% endif %} /
+
+          <a href="/admin/users/pwreset/{{ u.id }}">Password Reset</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}
