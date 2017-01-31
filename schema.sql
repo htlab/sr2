@@ -4,6 +4,7 @@ CREATE TABLE "user"(
 	hash_pw varchar(255) NOT NULL,
 	hash_seed varchar(255) NOT NULL,
 	created timestamp NOT NULL,
+	level int NOT NULL DEFAULT 0,
 	PRIMARY KEY (id),
 	UNIQUE (login)
 );
@@ -15,6 +16,41 @@ CREATE TABLE "api_key"(
 	created timestamp NOT NULL,
 	PRIMARY KEY (api_key)
 );
+
+CREATE TABLE node_list(
+    id bigserial,
+    name varchar(255) NOT NULL,
+    created timestamp NOT NULL,
+    means_all boolean NOT NULL DEFAULT false,
+    PRIMARY KEY (id),
+    UNIQUE (name)
+);
+CREATE INDEX node_list_name ON node_list (name);
+
+INSERT INTO node_list(name, means_all, created) VALUES ('preset_all', true, NOW());
+
+CREATE TABLE node_list_member(
+    id bigserial,
+    node_list_id bigint REFERENCES node_list (id),
+    observation_id bigint REFERENCES observation (id),
+    created timestamp NOT NULL,
+    PRIMARY KEY (id)
+);
+CREATE INDEX nlmember_node_list_id ON node_list_member (node_list_id);
+
+CREATE TYPE black_or_white AS ENUM('white', 'black');
+CREATE TABLE user_access_ctrl(
+    id bigserial,
+    name varchar(255) not null,
+    user_id bigint REFERENCES "user" (id),
+    node_list bigint REFERENCES node_list (id),
+    list_type black_or_white NOT NULL,
+    created timestamp NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (name)
+);
+CREATE INDEX user_access_ctrl_name ON user_access_ctrl (name);
+CREATE INDEX user_access_ctrl_user_id ON user_access_ctrl (user_id);
 
 CREATE TABLE observation(
 	id bigserial,
